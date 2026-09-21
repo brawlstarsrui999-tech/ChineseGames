@@ -20,8 +20,13 @@ object CgPaletteState {
     var night: Boolean = true
 }
 
-private fun dual(nightColor: Color, dayColor: Color): Color =
-    if (CgPaletteState.night) nightColor else dayColor
+/**
+ * Выбор «ночного» или «дневного» варианта одного и того же значения.
+ * Функция обобщённая: так она работает и с отдельными цветами (`Color`),
+ * и с градиентами (`List<Color>`).
+ */
+private fun <T> dual(nightValue: T, dayValue: T): T =
+    if (CgPaletteState.night) nightValue else dayValue
 
 /* ------------------------------- Ночная тема ------------------------------- */
 
