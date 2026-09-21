@@ -421,7 +421,8 @@ fun PixelCheckerBackdrop(
         while (y < this.size.height) {
             var x = if (row % 2 == 0) 0f else size
             while (x < this.size.width) {
-                drawRect(
+                // у drawRect нет параметра cornerRadius — скругление только у drawRoundRect
+                drawRoundRect(
                     color = color,
                     topLeft = Offset(x, y),
                     size = Size(size, size),
