@@ -57,9 +57,11 @@ import com.chinesegames.app.ui.components.GradientButton
 import com.chinesegames.app.ui.components.GradientProgress
 import com.chinesegames.app.ui.components.PurpleBackground
 import com.chinesegames.app.ui.components.SearchField
+import com.chinesegames.app.ui.theme.GoldAccent
 import com.chinesegames.app.ui.theme.LavenderGlow
 import com.chinesegames.app.ui.theme.LocalSounds
 import com.chinesegames.app.ui.theme.MintAccent
+import com.chinesegames.app.ui.theme.CG
 import com.chinesegames.app.ui.theme.RoseAccent
 import com.chinesegames.app.ui.theme.TextMuted
 import com.chinesegames.app.ui.theme.TextPrimary
@@ -74,8 +76,12 @@ import com.chinesegames.app.ui.wordsLabel
 @Composable
 fun DeckListScreen(
     viewModel: DeckViewModel,
+    favoritesCount: Int,
+    hardWordsCount: Int,
     onBack: () -> Unit,
-    onOpenDeck: (Long) -> Unit
+    onOpenDeck: (Long) -> Unit,
+    onOpenFavorites: () -> Unit,
+    onOpenHardWords: () -> Unit
 ) {
     val sounds = LocalSounds.current
     val decks by viewModel.decks.collectAsState()
@@ -141,6 +147,39 @@ fun DeckListScreen(
                     contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 120.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
+                    // Папка «Избранное» — слова со звёздочкой из всех папок
+                    item(key = "favorites") {
+                        SpecialRow(
+                            emoji = "⭐",
+                            title = "Избранное",
+                            subtitle = if (favoritesCount == 0) {
+                                "Отметьте звёздочкой слова из любой папки"
+                            } else {
+                                wordsLabel(favoritesCount)
+                            },
+                            accent = GoldAccent,
+                            onClick = {
+                                sounds.click()
+                                onOpenFavorites()
+                            }
+                        )
+                    }
+
+                    if (hardWordsCount > 0) {
+                        item(key = "hard") {
+                            SpecialRow(
+                                emoji = "🔥",
+                                title = "Сложные слова",
+                                subtitle = "Пока отвечаются хуже всего · $hardWordsCount",
+                                accent = RoseAccent,
+                                onClick = {
+                                    sounds.click()
+                                    onOpenHardWords()
+                                }
+                            )
+                        }
+                    }
+
                     items(filtered, key = { it.id }) { deck ->
                         DeckRow(
                             deck = deck,
@@ -325,5 +364,57 @@ private fun DeckRow(
                 }
             }
         }
+    }
+}
+
+/** Особый ряд списка: «Избранное» или «Сложные слова». */
+@Composable
+private fun SpecialRow(
+    emoji: String,
+    title: String,
+    subtitle: String,
+    accent: Color,
+    onClick: () -> Unit
+) {
+    val shape = RoundedCornerShape(24.dp)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(Brush.linearGradient(CG.cardGradient))
+            .border(1.dp, accent.copy(alpha = 0.55f), shape)
+            .clickable(onClick = onClick)
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(RoundedCornerShape(18.dp))
+                .background(accent.copy(alpha = 0.18f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(text = emoji, fontSize = 22.sp)
+        }
+        Spacer(Modifier.width(14.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                color = TextPrimary,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(Modifier.height(3.dp))
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = TextSecondary
+            )
+        }
+        Icon(
+            Icons.Filled.ChevronRight,
+            contentDescription = null,
+            tint = accent
+        )
     }
 }

@@ -22,7 +22,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -71,7 +70,7 @@ fun CgDialog(
                 .imePadding()
                 .clip(RoundedCornerShape(28.dp))
                 .background(
-                    Brush.verticalGradient(listOf(Color(0xFF2B1657), Color(0xFF170B31)))
+                    Brush.verticalGradient(CG.surface)
                 )
                 .border(1.dp, Brush.linearGradient(CG.cardBorder), RoundedCornerShape(28.dp))
                 .verticalScroll(rememberScrollState())

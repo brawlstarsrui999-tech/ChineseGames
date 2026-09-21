@@ -37,7 +37,7 @@ class GameSounds(context: Context) {
         listOf(
             R.raw.click, R.raw.flip, R.raw.match,
             R.raw.combo, R.raw.error, R.raw.win,
-            R.raw.star, R.raw.whoosh
+            R.raw.star, R.raw.whoosh, R.raw.pop
         ).forEach { res ->
             sampleIds[res] = try {
                 pool.load(context.applicationContext, res, 1)
@@ -82,6 +82,9 @@ class GameSounds(context: Context) {
 
     /** Переход между экранами. */
     fun whoosh() = play(R.raw.whoosh, 0.4f)
+
+    /** Лопающийся пузырь (игра «Bubble pop»). */
+    fun pop() = play(R.raw.pop, 0.75f)
 
     /** Тик обратного отсчёта/таймера. */
     fun tick() = play(R.raw.click, 0.3f, 1.35f)

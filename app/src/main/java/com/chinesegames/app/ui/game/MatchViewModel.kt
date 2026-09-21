@@ -16,7 +16,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
-/** Режимы игры «Найди пару». */
+/** Режимы игры «Найди пару» и «Мемори-сетка». */
 enum class GameMode(
     val title: String,
     val hint: String,
@@ -36,7 +36,22 @@ enum class GameMode(
         title = "🔊 Аудио → 汉字",
         hint = "Слушаем карточку-звук и находим её иероглиф",
         emoji = "🎧"
-    )
+    ),
+    MEMORY(
+        title = "Мемори-сетка",
+        hint = "Пары показали — дальше ищем их по памяти",
+        emoji = "🧩"
+    );
+
+    companion object {
+        fun forKind(kind: GameKind): GameMode = when (kind) {
+            GameKind.MEMORY_GRID -> MEMORY
+            else -> CLASSIC
+        }
+
+        fun fromName(raw: String?): GameMode =
+            entries.firstOrNull { it.name == raw } ?: CLASSIC
+    }
 }
 
 enum class CardKind { HANZI, RUSSIAN, AUDIO }
@@ -77,6 +92,9 @@ data class MatchUiState(
     val mode: GameMode = GameMode.CLASSIC,
     val deckIds: List<Long> = emptyList(),
     val pairsRequested: Int = 0,
+    /** Секунды предпросмотра всех пар (для «Мемори-сетки»). */
+    val previewSeconds: Int = 0,
+    val previewLeft: Int = 0,
     val message: String? = null,
     val comboMessage: String? = null,
     val shakeKey: Int = 0,
@@ -85,20 +103,24 @@ data class MatchUiState(
     val progress: Float
         get() = if (pairsTotal == 0) 0f else pairsFound.toFloat() / pairsTotal
 
+    val previewActive: Boolean get() = previewLeft > 0
+
     companion object {
         const val MAX_HINTS = 3
     }
 }
 
 /**
- * Движок игры «Найди пару»: раздача карточек, проверка пар,
- * комбо, очки, таймер и статистика по каждому слову.
+ * Движок игры «Найди пару» и «Мемори-сетки»: раздача карточек
+ * (сначала слова с низкой точностью), проверка пар, комбо, очки,
+ * таймер и статистика по каждому слову.
  */
 class MatchViewModel(app: Application) : AndroidViewModel(app) {
 
     private val repo: DeckRepository = (app as ChineseGamesApplication).repository
     private val sounds = (app as ChineseGamesApplication).sounds
     private val speaker = (app as ChineseGamesApplication).speaker
+    private val settings = (app as ChineseGamesApplication).settings
 
     private val _state = MutableStateFlow(MatchUiState())
     val state: StateFlow<MatchUiState> = _state.asStateFlow()
@@ -112,7 +134,7 @@ class MatchViewModel(app: Application) : AndroidViewModel(app) {
 
     /* --------------------------- Старт партии --------------------------- */
 
-    fun start(deckIds: List<Long>, pairsRequested: Int, mode: GameMode) {
+    fun start(deckIds: List<Long>, pairsRequested: Int, mode: GameMode, previewSeconds: Int = 0) {
         val current = _state.value
         if (!current.loading && current.cards.isNotEmpty() && !current.finished) return
 
@@ -120,12 +142,12 @@ class MatchViewModel(app: Application) : AndroidViewModel(app) {
             _state.update {
                 it.copy(loading = true, notEnoughWords = false)
             }
-            val words = repo.wordsOfDecks(deckIds)
+            val words = repo.studyWords(deckIds, settings.settings.srsFirst)
             if (words.size < MIN_WORDS) {
                 _state.update { it.copy(loading = false, notEnoughWords = true, cards = emptyList()) }
                 return@launch
             }
-            deal(deckIds, pairsRequested, mode, words)
+            deal(deckIds, pairsRequested, mode, previewSeconds, words)
         }
     }
 
@@ -133,6 +155,7 @@ class MatchViewModel(app: Application) : AndroidViewModel(app) {
         deckIds: List<Long>,
         pairsRequested: Int,
         mode: GameMode,
+        previewSeconds: Int,
         source: List<Word>,
         exactWords: Boolean = false
     ) {
@@ -142,7 +165,7 @@ class MatchViewModel(app: Application) : AndroidViewModel(app) {
         wordsInGame.clear()
 
         val pairs = pairsRequested.coerceIn(MIN_PAIRS, minOf(MAX_PAIRS, source.size))
-        val chosen = if (exactWords) source.take(pairs) else source.shuffled().take(pairs)
+        val chosen = if (exactWords) source.take(pairs) else source.take(pairs)
 
         val cards = ArrayList<MatchCard>(pairs * 2)
         val faceUp = HashSet<Int>()
@@ -180,23 +203,29 @@ class MatchViewModel(app: Application) : AndroidViewModel(app) {
                     hanzi = word.hanzi
                 )
             }
-            if (mode != GameMode.CLASSIC) faceUp.add(hanziCard.id)
+            if (mode == GameMode.RUSSIAN_TO_HANZI || mode == GameMode.AUDIO_TO_HANZI) {
+                faceUp.add(hanziCard.id)
+            }
             cards.add(hanziCard)
             cards.add(partnerCard)
         }
 
         val shuffled = cards.shuffled()
+        val preview = if (mode == GameMode.MEMORY) previewSeconds.coerceIn(0, 10) else 0
 
         _state.value = MatchUiState(
             loading = false,
             cards = shuffled,
             faceUpByDefault = faceUp,
-            revealed = faceUp,
+            revealed = if (preview > 0) shuffled.map { it.id }.toSet() else faceUp,
             pairsTotal = pairs,
             mode = mode,
             deckIds = deckIds,
             pairsRequested = pairsRequested,
-            hintsLeft = MatchUiState.MAX_HINTS
+            hintsLeft = if (mode == GameMode.MEMORY) 0 else MatchUiState.MAX_HINTS,
+            locked = preview > 0,
+            previewSeconds = preview,
+            previewLeft = preview
         )
 
         sounds.whoosh()
@@ -207,7 +236,7 @@ class MatchViewModel(app: Application) : AndroidViewModel(app) {
 
     fun onCardTap(cardId: Int) {
         val s = _state.value
-        if (s.loading || s.locked || s.finished || s.hintActive) return
+        if (s.loading || s.locked || s.finished || s.hintActive || s.previewActive) return
         if (s.matched.contains(cardId) || s.selected.contains(cardId)) return
 
         val card = s.cards.firstOrNull { it.id == cardId } ?: return
@@ -266,6 +295,10 @@ class MatchViewModel(app: Application) : AndroidViewModel(app) {
         if (_state.value.finished) completeGame()
     }
 
+    /**
+     * Промах: обе карточки остаются открытыми несколько секунд —
+     * именно за это время игрок успевает запомнить, где что лежит.
+     */
     private fun onMiss(first: MatchCard, second: MatchCard) {
         sounds.error()
 
@@ -275,10 +308,17 @@ class MatchViewModel(app: Application) : AndroidViewModel(app) {
         }
 
         val wrong = setOf(first.id, second.id)
+        val previewMillis = when (_state.value.mode) {
+            GameMode.MEMORY -> 1_500L
+            else -> 2_000L
+        }
+
         _state.update { s ->
             s.copy(
                 mistakes = s.mistakes + 1,
                 combo = 0,
+                // Показываем вторую карточку: раньше она лишь подсвечивалась красным
+                revealed = s.revealed + first.id + second.id,
                 locked = true,
                 wrongPair = wrong,
                 shakeKey = s.shakeKey + 1,
@@ -289,7 +329,7 @@ class MatchViewModel(app: Application) : AndroidViewModel(app) {
         }
 
         viewModelScope.launch {
-            delay(900)
+            delay(previewMillis)
             _state.update { s ->
                 val revealed = s.revealed.toMutableSet()
                 wrong.forEach { id -> if (!s.faceUpByDefault.contains(id)) revealed.remove(id) }
@@ -308,6 +348,7 @@ class MatchViewModel(app: Application) : AndroidViewModel(app) {
 
     fun useHint() {
         val s = _state.value
+        if (s.mode == GameMode.MEMORY) return
         if (s.hintsLeft <= 0 || s.finished || s.hintActive || s.locked || s.loading) return
         sounds.whoosh()
         _state.update {
@@ -332,7 +373,23 @@ class MatchViewModel(app: Application) : AndroidViewModel(app) {
             while (isActive) {
                 delay(1_000)
                 _state.update { s ->
-                    if (s.finished || s.paused || s.loading) s else s.copy(seconds = s.seconds + 1)
+                    when {
+                        s.finished || s.paused || s.loading -> s
+                        s.previewLeft > 0 -> {
+                            val left = s.previewLeft - 1
+                            if (left <= 0) {
+                                s.copy(
+                                    previewLeft = 0,
+                                    revealed = s.faceUpByDefault,
+                                    locked = false
+                                )
+                            } else {
+                                s.copy(previewLeft = left)
+                            }
+                        }
+
+                        else -> s.copy(seconds = s.seconds + 1)
+                    }
                 }
             }
         }
@@ -363,7 +420,14 @@ class MatchViewModel(app: Application) : AndroidViewModel(app) {
 
         sounds.win()
         _state.update {
-            it.copy(finished = true, stars = stars, accuracy = accuracy, score = score, comboMessage = null, message = null)
+            it.copy(
+                finished = true,
+                stars = stars,
+                accuracy = accuracy,
+                score = score,
+                comboMessage = null,
+                message = null
+            )
         }
 
         viewModelScope.launch {
@@ -407,15 +471,15 @@ class MatchViewModel(app: Application) : AndroidViewModel(app) {
         _state.value = MatchUiState(loading = true)
         viewModelScope.launch {
             if (newWords || playedWordIds.size < MIN_WORDS) {
-                val words = repo.wordsOfDecks(s.deckIds)
+                val words = repo.studyWords(s.deckIds, settings.settings.srsFirst)
                 if (words.size < MIN_WORDS) {
                     _state.update { it.copy(loading = false, notEnoughWords = true) }
                 } else {
-                    deal(s.deckIds, s.pairsRequested, s.mode, words)
+                    deal(s.deckIds, s.pairsRequested, s.mode, s.previewSeconds, words)
                 }
             } else {
                 val same = repo.wordsByIds(playedWordIds).shuffled()
-                deal(s.deckIds, s.pairsRequested, s.mode, same, exactWords = true)
+                deal(s.deckIds, s.pairsRequested, s.mode, s.previewSeconds, same, exactWords = true)
             }
         }
     }

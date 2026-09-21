@@ -1,7 +1,6 @@
 package com.chinesegames.app.ui.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,13 +19,14 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -43,7 +43,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -60,6 +59,7 @@ import com.chinesegames.app.ui.components.GradientButton
 import com.chinesegames.app.ui.components.PurpleBackground
 import com.chinesegames.app.ui.components.SearchField
 import com.chinesegames.app.ui.components.WordEditorDialog
+import com.chinesegames.app.ui.theme.GoldAccent
 import com.chinesegames.app.ui.theme.LavenderGlow
 import com.chinesegames.app.ui.theme.LocalSounds
 import com.chinesegames.app.ui.theme.LocalSpeaker
@@ -78,7 +78,7 @@ fun DeckDetailScreen(
     deckId: Long,
     viewModel: DeckViewModel,
     onBack: () -> Unit,
-    onPlayWithDeck: () -> Unit
+    onPlayWithDeck: (Long) -> Unit
 ) {
     val sounds = LocalSounds.current
     val speaker = LocalSpeaker.current
@@ -87,6 +87,7 @@ fun DeckDetailScreen(
     val wordsFlow = remember(deckId) { viewModel.wordsOf(deckId) }
     val deck by deckFlow.collectAsState(initial = null)
     val words by wordsFlow.collectAsState(initial = emptyList())
+    val favoriteIds by viewModel.favoriteIds.collectAsState()
 
     var query by remember { mutableStateOf("") }
     var showAddWord by remember { mutableStateOf(false) }
@@ -172,7 +173,7 @@ fun DeckDetailScreen(
                             .padding(horizontal = 16.dp),
                         onClick = {
                             sounds.click()
-                            onPlayWithDeck()
+                            onPlayWithDeck(deckId)
                         }
                     )
                     Spacer(Modifier.height(14.dp))
@@ -201,6 +202,11 @@ fun DeckDetailScreen(
                     items(filtered, key = { it.id }) { word ->
                         WordRow(
                             word = word,
+                            favorite = favoriteIds.contains(word.id),
+                            onToggleFavorite = {
+                                sounds.click()
+                                viewModel.toggleFavorite(word.id)
+                            },
                             onSpeak = {
                                 sounds.click()
                                 speaker.speak(it.hanzi)
@@ -314,7 +320,9 @@ fun DeckDetailScreen(
 @Composable
 private fun WordRow(
     word: Word,
+    favorite: Boolean,
     onSpeak: (Word) -> Unit,
+    onToggleFavorite: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -361,6 +369,21 @@ private fun WordRow(
                     contentDescription = "Озвучить",
                     tint = LavenderGlow,
                     modifier = Modifier.size(18.dp)
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .size(38.dp)
+                    .clip(CircleShape)
+                    .clickable(onClick = onToggleFavorite),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = if (favorite) Icons.Filled.Star else Icons.Outlined.StarBorder,
+                    contentDescription = if (favorite) "Убрать из избранного" else "В избранное",
+                    tint = if (favorite) GoldAccent else TextMuted,
+                    modifier = Modifier.size(20.dp)
                 )
             }
 

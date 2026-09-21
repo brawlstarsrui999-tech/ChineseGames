@@ -185,6 +185,17 @@ def sfx_whoosh() -> np.ndarray:
     return normalize(mix(body, tone), 0.38)
 
 
+def sfx_pop() -> np.ndarray:
+    """Лопнувший пузырь — короткий «поп» с булькающим хвостом (Bubble pop)."""
+    dur = 0.22
+    blip = sweep(880, 300, 0.1) * env(0.1, 0.001, 0.03)
+    bubble = sweep(320, 720, 0.16) * env(0.16, 0.004, 0.06) * 0.55
+    s = np.zeros(int(dur * SR))
+    place(s, blip, 0.0)
+    place(s, bubble, 0.05)
+    return normalize(s, 0.55)
+
+
 SOUNDS = {
     "click": sfx_click,
     "flip": sfx_flip,
@@ -194,6 +205,7 @@ SOUNDS = {
     "star": sfx_star,
     "win": sfx_win,
     "whoosh": sfx_whoosh,
+    "pop": sfx_pop,
 }
 
 

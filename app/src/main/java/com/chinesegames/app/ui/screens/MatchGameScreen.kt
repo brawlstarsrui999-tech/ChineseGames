@@ -18,9 +18,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -49,7 +46,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
@@ -61,22 +57,26 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.chinesegames.app.ui.cardsLabel
-import com.chinesegames.app.ui.components.CardsLegend
 import com.chinesegames.app.ui.components.CircleIconButton
 import com.chinesegames.app.ui.components.ComboBurst
 import com.chinesegames.app.ui.components.ConfirmDialog
 import com.chinesegames.app.ui.components.ConfettiOverlay
 import com.chinesegames.app.ui.components.EmptyState
+import com.chinesegames.app.ui.components.FitGrid
 import com.chinesegames.app.ui.components.GhostButton
 import com.chinesegames.app.ui.components.GlassCard
 import com.chinesegames.app.ui.components.GradientButton
 import com.chinesegames.app.ui.components.GradientProgress
+import com.chinesegames.app.ui.components.HudChip
 import com.chinesegames.app.ui.components.MatchCardView
+import com.chinesegames.app.ui.components.PixelDivider
+import com.chinesegames.app.ui.components.PixelTag
 import com.chinesegames.app.ui.components.PurpleBackground
 import com.chinesegames.app.ui.components.StatRow
 import com.chinesegames.app.ui.formatPercent
 import com.chinesegames.app.ui.formatTime
 import com.chinesegames.app.ui.game.GameMode
+import com.chinesegames.app.ui.game.GameKind
 import com.chinesegames.app.ui.game.MatchUiState
 import com.chinesegames.app.ui.game.MatchViewModel
 import com.chinesegames.app.ui.pairsLabel
@@ -85,22 +85,23 @@ import com.chinesegames.app.ui.theme.GoldAccent
 import com.chinesegames.app.ui.theme.LavenderGlow
 import com.chinesegames.app.ui.theme.LocalSounds
 import com.chinesegames.app.ui.theme.MintAccent
+import com.chinesegames.app.ui.theme.OnAccentInk
+import com.chinesegames.app.ui.theme.PixelType
 import com.chinesegames.app.ui.theme.RoseAccent
 import com.chinesegames.app.ui.theme.TextMuted
 import com.chinesegames.app.ui.theme.TextPrimary
 import com.chinesegames.app.ui.theme.TextSecondary
-import com.chinesegames.app.ui.theme.VividPurple
-import kotlinx.coroutines.delay
 
 /**
- * Игровое поле «Найди пару»: сетка карточек, таймер, комбо, подсказки
- * и экран победы с конфетти.
+ * Игровое поле «Найди пару» и «Мемори-сетки»: сетка карточек (всегда
+ * помещается на экран), таймер, комбо, подсказки и экран победы с конфетти.
  */
 @Composable
 fun MatchGameScreen(
     deckIds: List<Long>,
     pairs: Int,
     mode: GameMode,
+    previewSeconds: Int = 0,
     onExit: () -> Unit,
     onOpenSettings: () -> Unit,
     viewModel: MatchViewModel = viewModel()
@@ -110,7 +111,6 @@ fun MatchGameScreen(
     val state by viewModel.state.collectAsState()
     var showExitConfirm by remember { mutableStateOf(false) }
 
-    // Вибрация: нашлась пара — сильнее, ошибка — мягкий отклик
     LaunchedEffect(state.matched.size) {
         if (state.matched.isNotEmpty()) haptics.performHapticFeedback(HapticFeedbackType.LongPress)
     }
@@ -118,8 +118,8 @@ fun MatchGameScreen(
         if (state.shakeKey > 0) haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
     }
 
-    LaunchedEffect(deckIds, pairs, mode) {
-        viewModel.start(deckIds, pairs, mode)
+    LaunchedEffect(deckIds, pairs, mode, previewSeconds) {
+        viewModel.start(deckIds, pairs, mode, previewSeconds)
     }
 
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -135,7 +135,7 @@ fun MatchGameScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    PurpleBackground {
+    PurpleBackground(petals = false) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -148,47 +148,53 @@ fun MatchGameScreen(
                     sounds.whoosh()
                     showExitConfirm = true
                 },
-                onHint = {
-                    viewModel.useHint()
-                }
+                onHint = { viewModel.useHint() }
             )
 
-            val columns = when {
-                state.pairsTotal <= 6 -> 2
-                state.pairsTotal <= 12 -> 3
-                else -> 4
-            }
-            val compact = columns >= 4
-
             if (state.cards.isNotEmpty()) {
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(columns),
-                    modifier = Modifier.weight(1f).fillMaxWidth(),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(9.dp),
-                    verticalArrangement = Arrangement.spacedBy(9.dp)
-                ) {
-                    items(items = state.cards, key = { it.id }) { card ->
-                        MatchCardView(
-                            card = card,
-                            faceUp = state.hintActive ||
-                                state.revealed.contains(card.id) ||
-                                state.matched.contains(card.id),
-                            matched = state.matched.contains(card.id),
-                            selected = state.selected.contains(card.id),
-                            wrong = state.wrongPair.contains(card.id),
-                            shakeKey = if (state.wrongPair.contains(card.id)) state.shakeKey else 0,
-                            compact = compact,
-                            onClick = { viewModel.onCardTap(card.id) }
-                        )
-                    }
+                FitGrid(
+                    count = state.cards.size,
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                    maxColumns = if (state.cards.size <= 12) 4 else 6,
+                    spacing = 6.dp
+                ) { index, cellWidth, cellHeight ->
+                    val card = state.cards[index]
+                    MatchCardView(
+                        card = card,
+                        faceUp = state.hintActive ||
+                            state.revealed.contains(card.id) ||
+                            state.matched.contains(card.id),
+                        matched = state.matched.contains(card.id),
+                        selected = state.selected.contains(card.id),
+                        wrong = state.wrongPair.contains(card.id),
+                        shakeKey = if (state.wrongPair.contains(card.id)) state.shakeKey else 0,
+                        modifier = Modifier.size(cellWidth, cellHeight),
+                        onClick = { viewModel.onCardTap(card.id) }
+                    )
                 }
             } else {
                 Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
                     Text(
                         text = "Готовим карточки…",
-                        style = MaterialTheme.typography.bodyLarge,
+                        style = PixelType.chip,
                         color = TextSecondary
+                    )
+                }
+            }
+
+            if (state.previewActive) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    PixelTag(
+                        text = "ЗАПОМНИТЕ ПАРЫ · ${state.previewLeft} С",
+                        color = GoldAccent
                     )
                 }
             }
@@ -196,7 +202,7 @@ fun MatchGameScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 GhostButton(
@@ -208,17 +214,14 @@ fun MatchGameScreen(
                     }
                 )
                 Spacer(Modifier.weight(1f))
-                if (state.cards.isNotEmpty()) {
-                    Text(
-                        text = cardsLabel(state.cards.size),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = TextMuted
-                    )
-                }
+                Text(
+                    text = cardsLabel(state.cards.size),
+                    style = PixelType.caption,
+                    color = TextMuted
+                )
             }
         }
 
-        // Всплывающее «Комбо ×3  +150»
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
             ComboBurst(
                 text = state.comboMessage.orEmpty(),
@@ -231,7 +234,7 @@ fun MatchGameScreen(
             Box(
                 Modifier
                     .fillMaxSize()
-                    .background(Color(0xE60B0618)),
+                    .background(CG.scrim),
                 contentAlignment = Alignment.Center
             ) {
                 EmptyState(
@@ -284,6 +287,7 @@ private fun GameHeader(
     onHint: () -> Unit
 ) {
     val sounds = LocalSounds.current
+    val title = if (state.mode == GameMode.MEMORY) GameKind.MEMORY_GRID.title else GameKind.MATCH.title
 
     Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 6.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -292,93 +296,72 @@ private fun GameHeader(
                 contentDescription = "Назад",
                 onClick = onBack
             )
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(10.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Найди пару",
+                    text = title,
                     style = MaterialTheme.typography.titleMedium,
                     color = TextPrimary,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
                     text = "${state.mode.title} · ${state.pairsFound} из ${state.pairsTotal}",
-                    style = MaterialTheme.typography.labelSmall,
+                    style = PixelType.caption,
                     color = TextMuted
                 )
             }
-            HeaderChip(Icons.Filled.Timer, formatTime(state.seconds), LavenderGlow)
+            HudChip(Icons.Filled.Timer, formatTime(state.seconds), LavenderGlow)
             Spacer(Modifier.width(6.dp))
-            HeaderChip(Icons.Filled.Close, "${state.mistakes}", RoseAccent)
+            HudChip(Icons.Filled.Close, "${state.mistakes}", RoseAccent)
         }
 
-        Spacer(Modifier.height(10.dp))
-        GradientProgress(progress = state.progress, height = 8.dp)
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(8.dp))
+        GradientProgress(progress = state.progress, height = 7.dp)
+        Spacer(Modifier.height(8.dp))
 
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (state.combo >= 2) {
                 Row(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(50))
+                        .clip(RoundedCornerShape(8.dp))
                         .background(Brush.horizontalGradient(CG.goldGradient))
-                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                        .padding(horizontal = 10.dp, vertical = 5.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
                         imageVector = Icons.Filled.LocalFireDepartment,
                         contentDescription = null,
-                        tint = Color(0xFF4A2500),
-                        modifier = Modifier.size(16.dp)
+                        tint = OnAccentInk,
+                        modifier = Modifier.size(14.dp)
                     )
                     Spacer(Modifier.width(4.dp))
                     Text(
-                        text = "Комбо ×${state.combo}",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = Color(0xFF4A2500),
-                        fontWeight = FontWeight.Bold
+                        text = "×${state.combo}",
+                        style = PixelType.chip,
+                        color = OnAccentInk
                     )
                 }
             }
             Spacer(Modifier.weight(1f))
 
-            GhostButton(
-                text = "Подсказка · ${state.hintsLeft}",
-                icon = Icons.Filled.Lightbulb,
-                enabled = state.hintsLeft > 0 && !state.hintActive && !state.finished,
-                onClick = {
-                    sounds.click()
-                    onHint()
-                }
-            )
-            Spacer(Modifier.width(10.dp))
+            if (state.mode != GameMode.MEMORY) {
+                GhostButton(
+                    text = "Подсказка · ${state.hintsLeft}",
+                    icon = Icons.Filled.Lightbulb,
+                    enabled = state.hintsLeft > 0 && !state.hintActive && !state.finished,
+                    onClick = {
+                        sounds.click()
+                        onHint()
+                    }
+                )
+                Spacer(Modifier.width(10.dp))
+            }
             Text(
                 text = "${state.score} очк.",
-                style = MaterialTheme.typography.labelMedium,
-                color = GoldAccent,
-                fontWeight = FontWeight.Bold
+                style = PixelType.hud,
+                color = GoldAccent
             )
         }
-    }
-}
-
-@Composable
-private fun HeaderChip(icon: ImageVector, text: String, accent: Color) {
-    Row(
-        modifier = Modifier
-            .clip(RoundedCornerShape(50))
-            .background(Color.White.copy(alpha = 0.06f))
-            .border(1.dp, accent.copy(alpha = 0.3f), RoundedCornerShape(50))
-            .padding(horizontal = 10.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(icon, contentDescription = null, tint = accent, modifier = Modifier.size(14.dp))
-        Spacer(Modifier.width(5.dp))
-        Text(
-            text = text,
-            style = MaterialTheme.typography.labelMedium,
-            color = TextPrimary,
-            fontWeight = FontWeight.SemiBold
-        )
     }
 }
 
@@ -389,7 +372,7 @@ private fun PauseOverlay(onResume: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xE60B0618)),
+            .background(CG.scrim),
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -397,13 +380,13 @@ private fun PauseOverlay(onResume: () -> Unit) {
             Spacer(Modifier.height(10.dp))
             Text(
                 text = "Пауза",
-                style = MaterialTheme.typography.headlineMedium,
+                style = PixelType.title,
                 color = TextPrimary
             )
             Spacer(Modifier.height(6.dp))
             Text(
                 text = "Таймер остановлен — карточки вас подождут",
-                style = MaterialTheme.typography.bodySmall,
+                style = PixelType.chip,
                 color = TextSecondary
             )
             Spacer(Modifier.height(22.dp))
@@ -429,7 +412,7 @@ private fun WinOverlay(
         if (state.finished) {
             visibleStars = 0
             repeat(state.stars) { index ->
-                delay(430)
+                kotlinx.coroutines.delay(430)
                 visibleStars = index + 1
                 sounds.star(index)
             }
@@ -439,7 +422,7 @@ private fun WinOverlay(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xEE0B0618)),
+            .background(CG.scrimStrong),
         contentAlignment = Alignment.Center
     ) {
         ConfettiOverlay(Modifier.fillMaxSize())
@@ -448,7 +431,7 @@ private fun WinOverlay(
             modifier = Modifier
                 .fillMaxWidth(0.93f)
                 .clip(RoundedCornerShape(30.dp))
-                .background(Brush.verticalGradient(listOf(Color(0xFF2C1758), Color(0xFF140A2B))))
+                .background(Brush.verticalGradient(CG.panel))
                 .border(1.dp, Brush.linearGradient(CG.cardBorder), RoundedCornerShape(30.dp))
                 .padding(22.dp),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -490,7 +473,7 @@ private fun WinOverlay(
                 }
             }
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(14.dp))
 
             GlassCard(contentPadding = PaddingValues(16.dp)) {
                 StatRow("Очки", "${state.score}", valueColor = GoldAccent)
@@ -501,7 +484,9 @@ private fun WinOverlay(
                 StatRow("Время", formatTime(state.seconds))
             }
 
-            Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.height(16.dp))
+            PixelDivider()
+            Spacer(Modifier.height(16.dp))
 
             GradientButton(
                 text = "Ещё раз · новые слова",

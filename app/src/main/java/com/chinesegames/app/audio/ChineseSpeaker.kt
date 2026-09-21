@@ -1,7 +1,9 @@
 package com.chinesegames.app.audio
 
 import android.content.Context
+import android.os.Bundle
 import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
 import java.util.Locale
 
 /**
@@ -19,14 +21,48 @@ class ChineseSpeaker(context: Context) {
     @Volatile
     private var languageReady = false
 
+    /**
+     * Уведомление о начале/конце речи: нужно, чтобы фоновая музыка
+     * приглушалась, пока звучит иероглиф.
+     */
+    var onSpeechStateChange: ((Boolean) -> Unit)? = null
+
     init {
         try {
             engine = TextToSpeech(context.applicationContext) { status ->
                 initStatus = status
-                if (status == TextToSpeech.SUCCESS) configureLanguage()
+                if (status == TextToSpeech.SUCCESS) {
+                    configureLanguage()
+                    installListener()
+                }
             }
         } catch (_: Throwable) {
             engine = null
+        }
+    }
+
+    private fun installListener() {
+        try {
+            engine?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+                override fun onStart(utteranceId: String?) = notifySpeech(true)
+
+                override fun onDone(utteranceId: String?) = notifySpeech(false)
+
+                @Deprecated("Оставлено для старых движков TTS")
+                override fun onError(utteranceId: String?) = notifySpeech(false)
+
+                override fun onError(utteranceId: String?, errorCode: Int) = notifySpeech(false)
+
+                override fun onStop(utteranceId: String?, interrupted: Boolean) = notifySpeech(false)
+            })
+        } catch (_: Throwable) {
+        }
+    }
+
+    private fun notifySpeech(active: Boolean) {
+        try {
+            onSpeechStateChange?.invoke(active)
+        } catch (_: Throwable) {
         }
     }
 
@@ -51,11 +87,13 @@ class ChineseSpeaker(context: Context) {
     val isAvailable: Boolean get() = ensureReady()
 
     /** Произнести иероглиф. */
-    fun speak(text: String) {
+    fun speak(text: String, rate: Float = 1f) {
         if (text.isBlank()) return
         if (!ensureReady()) return
         try {
-            engine?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "cg-${text.hashCode()}")
+            engine?.setSpeechRate(rate.coerceIn(0.5f, 1.5f))
+            engine?.speak(text, TextToSpeech.QUEUE_FLUSH, Bundle(), "cg-${text.hashCode()}")
+            notifySpeech(true)
         } catch (_: Throwable) {
         }
     }
@@ -65,6 +103,7 @@ class ChineseSpeaker(context: Context) {
             engine?.stop()
         } catch (_: Throwable) {
         }
+        notifySpeech(false)
     }
 
     fun shutdown() {
@@ -75,5 +114,6 @@ class ChineseSpeaker(context: Context) {
         }
         engine = null
         languageReady = false
+        notifySpeech(false)
     }
 }
