@@ -78,9 +78,9 @@ class BackgroundMusic(context: Context) {
     }
 
     /** Переключение темы: ночная или дневная музыка. */
-    fun setDayTrack(day: Boolean) {
-        if (dayTrack == day) return
-        dayTrack = day
+    fun setDayTrack(isDay: Boolean) {
+        if (dayTrack == isDay) return
+        dayTrack = isDay
         if (player != null) {
             release()
             if (foreground) start()
