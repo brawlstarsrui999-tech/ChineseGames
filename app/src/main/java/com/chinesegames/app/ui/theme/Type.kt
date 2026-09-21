@@ -11,10 +11,12 @@ import androidx.compose.ui.unit.sp
 
 /**
  * Заголовки — с засечками (выглядит «книжно», подходит для иероглифов),
- * основной текст — санс-сериф.
+ * основной текст — санс-сериф, а подписи и цифры — моноширинные:
+ * так интерфейс выглядит «по-пиксельному» без внешних шрифтов.
  */
 private val Display = FontFamily.Serif
 private val Body = FontFamily.SansSerif
+private val Pixel = FontFamily.Monospace
 
 val AppTypography = Typography(
     displayLarge = TextStyle(fontFamily = Display, fontWeight = FontWeight.Bold, fontSize = 48.sp, lineHeight = 54.sp),
@@ -33,6 +35,37 @@ val AppTypography = Typography(
     labelMedium = TextStyle(fontFamily = Body, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, lineHeight = 18.sp),
     labelSmall = TextStyle(fontFamily = Body, fontWeight = FontWeight.Medium, fontSize = 11.sp, lineHeight = 15.sp)
 )
+
+/**
+ * «Пиксельные» стили: моноширинный шрифт + разрядка.
+ * Используются для очков, таймеров, бейджей и декоративных подписей.
+ */
+object PixelType {
+    val hud = TextStyle(
+        fontFamily = Pixel,
+        fontWeight = FontWeight.Bold,
+        fontSize = 18.sp,
+        letterSpacing = 1.5.sp
+    )
+    val chip = TextStyle(
+        fontFamily = Pixel,
+        fontWeight = FontWeight.Bold,
+        fontSize = 12.sp,
+        letterSpacing = 1.sp
+    )
+    val caption = TextStyle(
+        fontFamily = Pixel,
+        fontWeight = FontWeight.Normal,
+        fontSize = 10.sp,
+        letterSpacing = 1.2.sp
+    )
+    val title = TextStyle(
+        fontFamily = Pixel,
+        fontWeight = FontWeight.Bold,
+        fontSize = 14.sp,
+        letterSpacing = 2.sp
+    )
+}
 
 val AppShapes = Shapes(
     extraSmall = RoundedCornerShape(10.dp),

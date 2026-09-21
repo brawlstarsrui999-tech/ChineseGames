@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import com.chinesegames.app.ui.theme.CG
+import com.chinesegames.app.ui.theme.CgPaletteState
 import com.chinesegames.app.ui.theme.FuchsiaGlow
 import com.chinesegames.app.ui.theme.LavenderGlow
 import com.chinesegames.app.ui.theme.SkyAccent
@@ -28,12 +29,15 @@ import kotlin.math.sin
 import kotlin.random.Random
 
 /**
- * Живой фиолетовый фон: градиент + плавающие светящиеся «орбы» + звёздная пыль.
+ * Живой фон: градиент + плавающие светящиеся «орбы» + звёздная пыль,
+ * а поверх — анимешно-пиксельные декорации (лепестки сакуры и облачка).
  * Используется на всех экранах, чтобы оформление было единым.
  */
 @Composable
 fun PurpleBackground(
     modifier: Modifier = Modifier,
+    petals: Boolean = true,
+    clouds: Boolean = true,
     content: @Composable BoxScope.() -> Unit
 ) {
     val transition = rememberInfiniteTransition(label = "background")
@@ -58,30 +62,32 @@ fun PurpleBackground(
         Canvas(modifier = Modifier.fillMaxSize()) {
             val w = size.width
             val h = size.height
+            val night = CgPaletteState.night
+            val orbAlpha = if (night) 1f else 0.55f
 
             glow(
                 center = Offset(w * (0.16f + 0.06f * sin(t * TAU)), h * 0.10f),
                 radius = w * 0.85f,
                 color = VividPurple,
-                alpha = 0.32f
+                alpha = 0.32f * orbAlpha
             )
             glow(
                 center = Offset(w * (0.92f - 0.05f * sin(t * TAU + 1.5f)), h * 0.42f),
                 radius = w * 0.75f,
                 color = FuchsiaGlow,
-                alpha = 0.20f
+                alpha = 0.20f * orbAlpha
             )
             glow(
                 center = Offset(w * (0.30f + 0.08f * sin(t * TAU + 3f)), h * 0.92f),
                 radius = w * 0.9f,
                 color = SkyAccent,
-                alpha = 0.13f
+                alpha = (if (night) 0.13f else 0.10f) * orbAlpha
             )
 
             // Звёздная пыль
             dust.forEachIndexed { index, (fx, fy, speed) ->
                 val twinkle = 0.35f + 0.65f * ((sin(t * TAU * speed + index) + 1f) / 2f)
-                val alpha = 0.16f * twinkle
+                val alpha = (if (night) 0.16f else 0.20f) * twinkle
                 drawCircle(
                     color = LavenderGlow.copy(alpha = alpha),
                     radius = if (index % 7 == 0) 2.6f else 1.5f,
@@ -89,6 +95,19 @@ fun PurpleBackground(
                 )
             }
         }
+
+        if (clouds) {
+            PixelCloudLayer(modifier = Modifier.fillMaxSize())
+        }
+
+        if (petals) {
+            PixelPetalLayer(
+                modifier = Modifier.fillMaxSize(),
+                count = if (CgPaletteState.night) 12 else 14,
+                alpha = if (CgPaletteState.night) 0.85f else 1f
+            )
+        }
+
         content()
     }
 }

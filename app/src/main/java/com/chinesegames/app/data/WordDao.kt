@@ -22,6 +22,9 @@ interface WordDao {
     @Query("SELECT * FROM words WHERE id IN (:ids)")
     suspend fun getByIds(ids: List<Long>): List<Word>
 
+    @Query("SELECT * FROM words ORDER BY deckId ASC, id ASC")
+    suspend fun allWords(): List<Word>
+
     @Query("SELECT COUNT(*) FROM words")
     fun observeTotalCount(): Flow<Int>
 

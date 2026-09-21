@@ -19,6 +19,12 @@ interface DeckDao {
     @Query("SELECT * FROM decks WHERE id = :id")
     suspend fun getDeck(id: Long): Deck?
 
+    @Query("SELECT * FROM decks ORDER BY createdAt ASC")
+    suspend fun allDecks(): List<Deck>
+
+    @Query("SELECT * FROM decks WHERE name = :name LIMIT 1")
+    suspend fun getByName(name: String): Deck?
+
     @Insert
     suspend fun insert(deck: Deck): Long
 

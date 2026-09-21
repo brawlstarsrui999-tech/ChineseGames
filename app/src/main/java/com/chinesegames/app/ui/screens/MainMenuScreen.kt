@@ -21,7 +21,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoStories
 import androidx.compose.material.icons.filled.EmojiEvents
-import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.Insights
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.MusicOff
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.SportsEsports
@@ -53,6 +57,8 @@ import com.chinesegames.app.ui.components.StatPill
 import com.chinesegames.app.ui.theme.CG
 import com.chinesegames.app.ui.theme.GoldAccent
 import com.chinesegames.app.ui.theme.LavenderGlow
+import com.chinesegames.app.ui.theme.LocalMusic
+import com.chinesegames.app.ui.theme.LocalSettings
 import com.chinesegames.app.ui.theme.LocalSounds
 import com.chinesegames.app.ui.theme.MintAccent
 import com.chinesegames.app.ui.theme.SkyAccent
@@ -72,10 +78,16 @@ fun MainMenuScreen(
     gamesPlayed: Int,
     bestScore: Int,
     onOpenDecks: () -> Unit,
-    onOpenGames: () -> Unit
+    onOpenGames: () -> Unit,
+    onOpenFavorites: () -> Unit,
+    onOpenStats: () -> Unit,
+    onOpenSettings: () -> Unit
 ) {
     val sounds = LocalSounds.current
+    val music = LocalMusic.current
+    val settings = LocalSettings.current
     var muted by remember { mutableStateOf(sounds.muted) }
+    var musicOn by remember { mutableStateOf(settings.settings.musicEnabled) }
 
     PurpleBackground {
         Column(
@@ -105,6 +117,17 @@ fun MainMenuScreen(
                     muted = !muted
                     sounds.muted = muted
                     if (!muted) sounds.click()
+                }
+                Spacer(Modifier.width(10.dp))
+                CircleIconButton(
+                    icon = if (musicOn) Icons.Filled.MusicNote else Icons.Filled.MusicOff,
+                    contentDescription = if (musicOn) "Выключить музыку" else "Включить музыку",
+                    tint = if (musicOn) LavenderGlow else TextMuted
+                ) {
+                    musicOn = !musicOn
+                    music.enabled = musicOn
+                    settings.setMusicEnabled(musicOn)
+                    if (musicOn) sounds.click()
                 }
             }
 
@@ -220,6 +243,48 @@ fun MainMenuScreen(
                 onClick = {
                     sounds.click()
                     onOpenGames()
+                }
+            )
+
+            Spacer(Modifier.height(14.dp))
+
+            MenuTile(
+                title = "Статистика",
+                subtitle = "График по дням, слабые слова, рекорды",
+                icon = Icons.Filled.Insights,
+                glyph = "📊",
+                gradient = CG.primaryGradient,
+                onClick = {
+                    sounds.click()
+                    onOpenStats()
+                }
+            )
+
+            Spacer(Modifier.height(14.dp))
+
+            MenuTile(
+                title = "Избранное",
+                subtitle = "Слова со звёздочкой — своя подборка для игр",
+                icon = Icons.Filled.Star,
+                glyph = "⭐",
+                gradient = CG.goldGradient,
+                onClick = {
+                    sounds.click()
+                    onOpenFavorites()
+                }
+            )
+
+            Spacer(Modifier.height(14.dp))
+
+            MenuTile(
+                title = "Настройки",
+                subtitle = "Тема день/ночь, музыка, экспорт словаря в CSV",
+                icon = Icons.Filled.Settings,
+                glyph = "⚙️",
+                gradient = CG.audioGradient,
+                onClick = {
+                    sounds.click()
+                    onOpenSettings()
                 }
             )
 
