@@ -65,7 +65,10 @@ object Routes {
     fun deck(deckId: Long) = "deck/$deckId"
 
     fun setup(kind: GameKind, preselect: List<Long> = emptyList()) =
-        "setup/${kind.id}?preselect=${preselect.joinToString(",")}"
+        // без предвыбранных папок параметр не пишем вовсе: пустое значение
+        // в маршруте не нужно и может смущать Navigation
+        if (preselect.isEmpty()) "setup/${kind.id}"
+        else "setup/${kind.id}?preselect=${preselect.joinToString(",")}"
 
     fun matchGame(deckIds: List<Long>, pairs: Int, mode: GameMode, previewSeconds: Int) =
         "match_game/${deckIds.joinToString(",")}/$pairs/${mode.name}/$previewSeconds"
