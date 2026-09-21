@@ -243,7 +243,8 @@ fun GameSetupScreen(
                             modifier = Modifier.padding(horizontal = 16.dp),
                             verticalArrangement = Arrangement.spacedBy(9.dp)
                         ) {
-                            GameMode.entries.forEach { m ->
+                            // «Мемори-сетка» — отдельная игра, здесь только три режима пар
+                            GameMode.entries.filter { it != GameMode.MEMORY }.forEach { m ->
                                 ModeRow(mode = m, selected = m == mode) {
                                     sounds.click()
                                     mode = m
