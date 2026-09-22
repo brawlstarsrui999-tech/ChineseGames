@@ -14,9 +14,12 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         GameWordStat::class,
         MatchResult::class,
         Favorite::class,
-        GameResult::class
+        GameResult::class,
+        HskGroupProgress::class,
+        HskExam::class,
+        HskSentenceProgress::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -25,6 +28,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun wordDao(): WordDao
     abstract fun statsDao(): StatsDao
     abstract fun favoriteDao(): FavoriteDao
+    abstract fun hskDao(): HskDao
 
     companion object {
         private const val DB_NAME = "chinese_games.db"
@@ -57,6 +61,52 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * v3: курс «Поэтапное изучение» (прогресс групп, экзамены, предложения)
+         * и системная папка «Выученное», которую нельзя удалить.
+         */
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE `decks` ADD COLUMN `isSystem` INTEGER NOT NULL DEFAULT 0"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `hsk_group_progress` (" +
+                        "`groupKey` TEXT NOT NULL, " +
+                        "`level` INTEGER NOT NULL, " +
+                        "`topicId` TEXT NOT NULL, " +
+                        "`groupIndex` INTEGER NOT NULL, " +
+                        "`passedMask` INTEGER NOT NULL, " +
+                        "`attempts` INTEGER NOT NULL, " +
+                        "`bestScore` INTEGER NOT NULL, " +
+                        "`learned` INTEGER NOT NULL, " +
+                        "`updatedAt` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`groupKey`))"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `hsk_exam` (" +
+                        "`level` INTEGER NOT NULL, " +
+                        "`passed` INTEGER NOT NULL, " +
+                        "`bestAccuracy` REAL NOT NULL, " +
+                        "`bestScore` INTEGER NOT NULL, " +
+                        "`bestCorrect` INTEGER NOT NULL, " +
+                        "`asked` INTEGER NOT NULL, " +
+                        "`takenAt` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`level`))"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `hsk_sentence_progress` (" +
+                        "`topicKey` TEXT NOT NULL, " +
+                        "`level` INTEGER NOT NULL, " +
+                        "`topicId` TEXT NOT NULL, " +
+                        "`passedMask` INTEGER NOT NULL, " +
+                        "`attempts` INTEGER NOT NULL, " +
+                        "`updatedAt` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`topicKey`))"
+                )
+            }
+        }
+
         @Volatile
         private var instance: AppDatabase? = null
 
@@ -66,7 +116,7 @@ abstract class AppDatabase : RoomDatabase() {
                 AppDatabase::class.java,
                 DB_NAME
             )
-                .addMigrations(MIGRATION_1_2)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                 .fallbackToDestructiveMigration()
                 .build()
                 .also { instance = it }

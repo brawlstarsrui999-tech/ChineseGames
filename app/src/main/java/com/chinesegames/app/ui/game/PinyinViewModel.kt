@@ -56,12 +56,14 @@ class PinyinViewModel(app: Application) : AndroidViewModel(app) {
     private val repo: DeckRepository = (app as ChineseGamesApplication).repository
     private val sounds = (app as ChineseGamesApplication).sounds
     private val speaker = (app as ChineseGamesApplication).speaker
+    private val settings = (app as ChineseGamesApplication).settings
 
     private val _state = MutableStateFlow(PinyinUiState())
     val state: StateFlow<PinyinUiState> = _state.asStateFlow()
 
     private var tickJob: Job? = null
     private var advanceJob: Job? = null
+    private var speechJob: Job? = null
 
     private val wordQuality = HashMap<Long, Float>()
     private val wordMistakes = HashMap<Long, Int>()
@@ -173,6 +175,7 @@ class PinyinViewModel(app: Application) : AndroidViewModel(app) {
                     score = it.score + 100 + comboBonus
                 )
             }
+            speakAnswer(word.hanzi)
             scheduleNext(900)
         } else {
             sounds.error()
@@ -187,6 +190,7 @@ class PinyinViewModel(app: Application) : AndroidViewModel(app) {
                     score = (it.score - 20).coerceAtLeast(0)
                 )
             }
+            speakAnswer(word.hanzi)
             scheduleNext(2_200)
         }
     }
@@ -212,7 +216,18 @@ class PinyinViewModel(app: Application) : AndroidViewModel(app) {
                     combo = 0
                 )
             }
+            speakAnswer(word.hanzi)
             scheduleNext(2_200)
+        }
+    }
+
+    /** Озвучка слова после ответа (настройка «Озвучка слов»). */
+    private fun speakAnswer(hanzi: String) {
+        if (!settings.settings.speakWords || hanzi.isBlank()) return
+        speechJob?.cancel()
+        speechJob = viewModelScope.launch {
+            delay(320)
+            if (isActive) speaker.speak(hanzi)
         }
     }
 
@@ -316,6 +331,7 @@ class PinyinViewModel(app: Application) : AndroidViewModel(app) {
         super.onCleared()
         tickJob?.cancel()
         advanceJob?.cancel()
+        speechJob?.cancel()
     }
 
     companion object {

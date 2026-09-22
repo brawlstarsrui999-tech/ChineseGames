@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
@@ -121,35 +122,47 @@ fun DeckDetailScreen(
                     onBack()
                 },
                 actions = {
-                    Box {
-                        var open by remember { mutableStateOf(false) }
+                    // «Выученное» — системная папка: её нельзя переименовать или удалить
+                    if (deck?.isSystem == true) {
                         Icon(
-                            imageVector = Icons.Filled.MoreVert,
-                            contentDescription = "Меню папки",
+                            imageVector = Icons.Filled.Lock,
+                            contentDescription = "Системная папка",
                             tint = TextMuted,
                             modifier = Modifier
                                 .size(42.dp)
-                                .clip(CircleShape)
-                                .clickable { open = true }
-                                .padding(10.dp)
+                                .padding(11.dp)
                         )
-                        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-                            DropdownMenuItem(
-                                text = { Text("Изменить папку") },
-                                leadingIcon = { Icon(Icons.Filled.Edit, contentDescription = null) },
-                                onClick = {
-                                    open = false
-                                    showEditDeck = true
-                                }
+                    } else {
+                        Box {
+                            var open by remember { mutableStateOf(false) }
+                            Icon(
+                                imageVector = Icons.Filled.MoreVert,
+                                contentDescription = "Меню папки",
+                                tint = TextMuted,
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .clip(CircleShape)
+                                    .clickable { open = true }
+                                    .padding(10.dp)
                             )
-                            DropdownMenuItem(
-                                text = { Text("Удалить папку", color = RoseAccent) },
-                                leadingIcon = { Icon(Icons.Filled.Delete, contentDescription = null) },
-                                onClick = {
-                                    open = false
-                                    showDeleteDeck = true
-                                }
-                            )
+                            DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+                                DropdownMenuItem(
+                                    text = { Text("Изменить папку") },
+                                    leadingIcon = { Icon(Icons.Filled.Edit, contentDescription = null) },
+                                    onClick = {
+                                        open = false
+                                        showEditDeck = true
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Удалить папку", color = RoseAccent) },
+                                    leadingIcon = { Icon(Icons.Filled.Delete, contentDescription = null) },
+                                    onClick = {
+                                        open = false
+                                        showDeleteDeck = true
+                                    }
+                                )
+                            }
                         }
                     }
                 }

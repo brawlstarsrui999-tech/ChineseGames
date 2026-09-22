@@ -59,7 +59,10 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.chinesegames.app.data.DisplayMode
 import com.chinesegames.app.data.Word
+import com.chinesegames.app.ui.WordDisplay
+import com.chinesegames.app.ui.rememberAppSettings
 import com.chinesegames.app.ui.components.AnswerState
 import com.chinesegames.app.ui.components.AnswerTile
 import com.chinesegames.app.ui.components.ConfirmDialog
@@ -321,6 +324,7 @@ private fun ColumnScope.MemorizeStage(state: QuizUiState) {
 
 @Composable
 private fun MemorizeCard(word: Word) {
+    val display = rememberAppSettings().displayMode
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -331,15 +335,15 @@ private fun MemorizeCard(word: Word) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = word.hanzi,
+            text = WordDisplay.main(word, display),
             fontSize = 30.sp,
             color = TextPrimary,
             fontWeight = FontWeight.Medium
         )
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
-            if (word.pinyin.isNotBlank()) {
-                Text(text = word.pinyin, style = PixelType.chip, color = LavenderGlow)
+            WordDisplay.sub(word, display)?.let { pinyin ->
+                Text(text = pinyin, style = PixelType.chip, color = LavenderGlow)
             }
             Text(
                 text = word.translation,
@@ -371,18 +375,28 @@ private fun ColumnScope.QuestionStage(
     }
 }
 
-/** Русская подпись варианта ответа. */
-private fun optionText(question: QuizQuestion, index: Int, kind: AnswerKind): String {
+/** Подпись варианта ответа: перевод или иероглиф/пиньинь по режиму отображения. */
+private fun optionText(
+    question: QuizQuestion,
+    index: Int,
+    kind: AnswerKind,
+    display: DisplayMode
+): String {
     val word = question.options.getOrNull(index) ?: return ""
     return when (kind) {
         AnswerKind.TRANSLATION -> word.translation
-        AnswerKind.HANZI -> word.hanzi
+        AnswerKind.HANZI -> WordDisplay.main(word, display)
     }
 }
 
-private fun optionSub(question: QuizQuestion, index: Int, kind: AnswerKind): String? {
+private fun optionSub(
+    question: QuizQuestion,
+    index: Int,
+    kind: AnswerKind,
+    display: DisplayMode
+): String? {
     val word = question.options.getOrNull(index) ?: return null
-    return if (kind == AnswerKind.HANZI && word.pinyin.isNotBlank()) word.pinyin else null
+    return if (kind == AnswerKind.HANZI) WordDisplay.sub(word, display) else null
 }
 
 private fun answerState(state: QuizUiState, index: Int): AnswerState = when {
@@ -401,6 +415,7 @@ private fun ColumnScope.ChoiceStage(
     onSkip: () -> Unit
 ) {
     val haptics = LocalHapticFeedback.current
+    val display = rememberAppSettings().displayMode
     LaunchedEffect(state.sparkKey) {
         if (state.sparkKey > 0) haptics.performHapticFeedback(HapticFeedbackType.LongPress)
     }
@@ -416,8 +431,8 @@ private fun ColumnScope.ChoiceStage(
         Spacer(Modifier.height(6.dp))
         question.options.forEachIndexed { index, _ ->
             AnswerTile(
-                text = optionText(question, index, state.config.answer),
-                sub = optionSub(question, index, state.config.answer),
+                text = optionText(question, index, state.config.answer, display),
+                sub = optionSub(question, index, state.config.answer, display),
                 state = answerState(state, index),
                 modifier = Modifier.fillMaxWidth(),
                 big = false,
@@ -448,17 +463,18 @@ private fun PromptContent(
     onRepeatAudio: () -> Unit
 ) {
     val word = question.word
+    val display = rememberAppSettings().displayMode
     when (state.config.prompt) {
         PromptKind.HANZI -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                text = word.hanzi,
+                text = WordDisplay.main(word, display),
                 fontSize = 44.sp,
                 color = TextPrimary,
                 fontWeight = FontWeight.Medium,
                 textAlign = TextAlign.Center
             )
-            if (word.pinyin.isNotBlank()) {
-                Text(text = word.pinyin, style = PixelType.chip, color = LavenderGlow)
+            WordDisplay.sub(word, display)?.let { pinyin ->
+                Text(text = pinyin, style = PixelType.chip, color = LavenderGlow)
             }
         }
 
@@ -529,6 +545,7 @@ private fun ColumnScope.BubbleStage(
     onAnswer: (Int) -> Unit
 ) {
     val progress = rememberProgress(state.index, state.config.secondsPerQuestion)
+    val display = rememberAppSettings().displayMode
 
     Column(modifier = Modifier.weight(1f).fillMaxWidth()) {
         PromptPanel(
@@ -537,13 +554,13 @@ private fun ColumnScope.BubbleStage(
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    text = question.word.hanzi,
+                    text = WordDisplay.main(question.word, display),
                     fontSize = 40.sp,
                     color = TextPrimary,
                     fontWeight = FontWeight.Medium
                 )
-                if (question.word.pinyin.isNotBlank()) {
-                    Text(text = question.word.pinyin, style = PixelType.chip, color = LavenderGlow)
+                WordDisplay.sub(question.word, display)?.let { pinyin ->
+                    Text(text = pinyin, style = PixelType.chip, color = LavenderGlow)
                 }
                 Spacer(Modifier.height(4.dp))
                 Text(
@@ -574,7 +591,7 @@ private fun ColumnScope.BubbleStage(
                 val y = startY - progress * travel
                 val wobble = sin(progress * 7f + index * 1.7f) * 0.02f
                 Bubble(
-                    text = optionText(question, index, state.config.answer),
+                    text = optionText(question, index, state.config.answer, display),
                     state = answerState(state, index),
                     modifier = Modifier
                         .offset(x = areaWidth * (lane + wobble), y = areaHeight * y)
@@ -637,6 +654,7 @@ private fun ColumnScope.FallingStage(
     onAnswer: (Int) -> Unit
 ) {
     val progress = rememberProgress(state.index, state.config.secondsPerQuestion)
+    val display = rememberAppSettings().displayMode
 
     Column(modifier = Modifier.weight(1f).fillMaxWidth()) {
         BoxWithConstraints(
@@ -658,13 +676,13 @@ private fun ColumnScope.FallingStage(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = question.word.hanzi,
+                    text = WordDisplay.main(question.word, display),
                     fontSize = 40.sp,
                     color = TextPrimary,
                     fontWeight = FontWeight.Medium
                 )
-                if (question.word.pinyin.isNotBlank()) {
-                    Text(text = question.word.pinyin, style = PixelType.chip, color = LavenderGlow)
+                WordDisplay.sub(question.word, display)?.let { pinyin ->
+                    Text(text = pinyin, style = PixelType.chip, color = LavenderGlow)
                 }
             }
 
@@ -679,8 +697,8 @@ private fun ColumnScope.FallingStage(
         ) {
             question.options.forEachIndexed { index, _ ->
                 AnswerTile(
-                    text = optionText(question, index, state.config.answer),
-                    sub = optionSub(question, index, state.config.answer),
+                    text = optionText(question, index, state.config.answer, display),
+                    sub = optionSub(question, index, state.config.answer, display),
                     state = answerState(state, index),
                     modifier = Modifier.fillMaxWidth(),
                     onClick = { onAnswer(index) }
@@ -697,6 +715,7 @@ private fun ColumnScope.SprintStage(
     question: QuizQuestion,
     onAnswer: (Int) -> Unit
 ) {
+    val display = rememberAppSettings().displayMode
     Column(
         modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 14.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -730,7 +749,7 @@ private fun ColumnScope.SprintStage(
         Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
             PromptPanel(accent = VividPurple) {
                 Text(
-                    text = question.word.hanzi,
+                    text = WordDisplay.main(question.word, display),
                     fontSize = 52.sp,
                     color = TextPrimary,
                     fontWeight = FontWeight.Medium
@@ -744,8 +763,8 @@ private fun ColumnScope.SprintStage(
 
         question.options.forEachIndexed { index, _ ->
             AnswerTile(
-                text = optionText(question, index, state.config.answer),
-                sub = optionSub(question, index, state.config.answer),
+                text = optionText(question, index, state.config.answer, display),
+                sub = optionSub(question, index, state.config.answer, display),
                 state = answerState(state, index),
                 modifier = Modifier.fillMaxWidth().weight(1f, fill = false),
                 onClick = { onAnswer(index) }
@@ -764,6 +783,7 @@ private fun ColumnScope.AudioStage(
     onAnswer: (Int) -> Unit,
     onRepeatAudio: () -> Unit
 ) {
+    val display = rememberAppSettings().displayMode
     Column(
         modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -773,8 +793,8 @@ private fun ColumnScope.AudioStage(
         }
         question.options.forEachIndexed { index, _ ->
             AnswerTile(
-                text = optionText(question, index, state.config.answer),
-                sub = optionSub(question, index, state.config.answer),
+                text = optionText(question, index, state.config.answer, display),
+                sub = optionSub(question, index, state.config.answer, display),
                 state = answerState(state, index),
                 modifier = Modifier.fillMaxWidth().weight(1f, fill = false),
                 big = true,

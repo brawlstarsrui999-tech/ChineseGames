@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.SportsEsports
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -37,10 +38,15 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.chinesegames.app.ui.components.Badge
 import com.chinesegames.app.ui.components.CgTopBar
 import com.chinesegames.app.ui.components.GlassCard
+import com.chinesegames.app.ui.components.MainTab
+import com.chinesegames.app.ui.components.accent
+import com.chinesegames.app.ui.components.icon
+import com.chinesegames.app.ui.components.softBorder
+import com.chinesegames.app.ui.components.softGradient
+import com.chinesegames.app.ui.components.softSurface
 import com.chinesegames.app.ui.components.PixelCatWisdom
 import com.chinesegames.app.ui.components.PixelLanternRow
 import com.chinesegames.app.ui.components.PixelTag
@@ -73,7 +79,7 @@ fun GamesHubScreen(
     averageAccuracy: Float,
     bestScore: Int,
     favoritesCount: Int,
-    onBack: () -> Unit,
+    onBack: (() -> Unit)? = null,
     onOpenGame: (GameKind, List<Long>) -> Unit,
     onOpenStats: () -> Unit
 ) {
@@ -90,10 +96,13 @@ fun GamesHubScreen(
             CgTopBar(
                 title = "Игры",
                 subtitle = "Восемь тренировок по вашему словарю",
-                emoji = "🎮",
-                onBack = {
-                    sounds.whoosh()
-                    onBack()
+                icon = MainTab.GAMES.icon,
+                iconTint = MainTab.GAMES.accent,
+                onBack = onBack?.let { handler ->
+                    {
+                        sounds.whoosh()
+                        handler()
+                    }
                 },
                 actions = {
                     Icon(
@@ -172,7 +181,14 @@ fun GamesHubScreen(
                 if (favoritesCount > 0) {
                     GlassCard(contentPadding = PaddingValues(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            PixelTag(text = "⭐ ИЗБРАННОЕ", color = GoldAccent)
+                            Icon(
+                                imageVector = Icons.Filled.Star,
+                                contentDescription = null,
+                                tint = GoldAccent,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            PixelTag(text = "ИЗБРАННОЕ", color = GoldAccent)
                             Spacer(Modifier.width(10.dp))
                             Text(
                                 text = "Своя подборка: $favoritesCount слов",
@@ -226,7 +242,12 @@ fun GamesHubScreen(
 @Composable
 private fun GroupHeader(group: GameGroup) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(text = group.emoji, fontSize = 16.sp)
+        Icon(
+            imageVector = group.icon,
+            contentDescription = null,
+            tint = group.accent,
+            modifier = Modifier.size(20.dp)
+        )
         Spacer(Modifier.width(8.dp))
         SectionTitle(group.title)
     }
@@ -236,12 +257,13 @@ private fun GroupHeader(group: GameGroup) {
 @Composable
 private fun GameRow(kind: GameKind, onClick: () -> Unit) {
     val shape = RoundedCornerShape(24.dp)
+    val accent = kind.group.accent
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(Brush.linearGradient(CG.cardGradient))
-            .border(1.dp, Brush.linearGradient(CG.cardBorder), shape)
+            .background(kind.group.softSurface)
+            .border(1.dp, kind.group.softBorder, shape)
             .clickable(onClick = onClick)
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -250,10 +272,15 @@ private fun GameRow(kind: GameKind, onClick: () -> Unit) {
             modifier = Modifier
                 .size(52.dp)
                 .clip(RoundedCornerShape(18.dp))
-                .background(Brush.linearGradient(CG.primaryGradient)),
+                .background(Brush.linearGradient(kind.group.softGradient)),
             contentAlignment = Alignment.Center
         ) {
-            Text(text = kind.emoji, fontSize = 24.sp)
+            Icon(
+                imageVector = kind.icon,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(26.dp)
+            )
         }
         Spacer(Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
@@ -286,7 +313,7 @@ private fun GameRow(kind: GameKind, onClick: () -> Unit) {
         Icon(
             imageVector = Icons.Filled.PlayArrow,
             contentDescription = null,
-            tint = MintAccent,
+            tint = accent,
             modifier = Modifier.size(26.dp)
         )
     }

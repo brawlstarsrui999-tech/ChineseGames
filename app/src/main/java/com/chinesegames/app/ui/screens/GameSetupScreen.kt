@@ -45,6 +45,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chinesegames.app.data.DeckRepository
+import com.chinesegames.app.data.DisplayMode
 import com.chinesegames.app.ui.DeckViewModel
 import com.chinesegames.app.ui.cardsLabel
 import com.chinesegames.app.ui.components.CgTopBar
@@ -232,6 +233,36 @@ fun GameSetupScreen(
                         },
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
+                    VSpace(20.dp)
+                }
+
+                item {
+                    // Что показывать в игре: иероглифы, пиньинь или и то и другое
+                    Box(Modifier.padding(horizontal = 16.dp)) { SectionTitle("Отображение") }
+                    VSpace(10.dp)
+                    GlassCard(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        contentPadding = PaddingValues(16.dp)
+                    ) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            DisplayMode.entries.forEach { displayMode ->
+                                SelectChip(
+                                    text = displayMode.shortTitle,
+                                    selected = appSettings.displayMode == displayMode,
+                                    onClick = {
+                                        sounds.click()
+                                        settings.setDisplayMode(displayMode)
+                                    }
+                                )
+                            }
+                        }
+                        VSpace(10.dp)
+                        Text(
+                            text = appSettings.displayMode.hint,
+                            style = PixelType.caption,
+                            color = TextMuted
+                        )
+                    }
                     VSpace(20.dp)
                 }
 

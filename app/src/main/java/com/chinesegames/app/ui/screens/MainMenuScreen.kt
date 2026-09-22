@@ -15,18 +15,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoStories
 import androidx.compose.material.icons.filled.EmojiEvents
-import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.MusicOff
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.SportsEsports
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
@@ -49,8 +45,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chinesegames.app.ui.components.BreathingIcon
 import com.chinesegames.app.ui.components.CircleIconButton
-import com.chinesegames.app.ui.components.GlassCard
-import com.chinesegames.app.ui.components.MenuTile
 import com.chinesegames.app.ui.components.PulsingGlow
 import com.chinesegames.app.ui.components.PurpleBackground
 import com.chinesegames.app.ui.components.StatPill
@@ -63,25 +57,21 @@ import com.chinesegames.app.ui.theme.LocalSounds
 import com.chinesegames.app.ui.theme.MintAccent
 import com.chinesegames.app.ui.theme.SkyAccent
 import com.chinesegames.app.ui.theme.TextMuted
-import com.chinesegames.app.ui.theme.TextPrimary
 import com.chinesegames.app.ui.theme.TextSecondary
 import com.chinesegames.app.ui.theme.VividPurple
 
 /**
- * Главный экран: логотип, статистика и два входа — словарь и игры.
+ * Главный экран: логотип, статистика и переключатели звука.
+ *
+ * Разделов в нижней навигации стало много, поэтому плиток-кнопок и длинных
+ * пояснений здесь больше нет — экран короткий и не перегружен текстом.
  */
 @Composable
 fun MainMenuScreen(
     totalWords: Int,
     learnedWords: Int,
-    decksCount: Int,
     gamesPlayed: Int,
-    bestScore: Int,
-    onOpenDecks: () -> Unit,
-    onOpenGames: () -> Unit,
-    onOpenFavorites: () -> Unit,
-    onOpenStats: () -> Unit,
-    onOpenSettings: () -> Unit
+    bestScore: Int
 ) {
     val sounds = LocalSounds.current
     val music = LocalMusic.current
@@ -131,7 +121,7 @@ fun MainMenuScreen(
                 }
             }
 
-            Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.height(34.dp))
 
             // Логотип
             Box(
@@ -158,7 +148,7 @@ fun MainMenuScreen(
                 }
             }
 
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(26.dp))
 
             Text(
                 text = "ChineseGames",
@@ -177,7 +167,7 @@ fun MainMenuScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(28.dp))
 
             // Статистика
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -214,113 +204,17 @@ fun MainMenuScreen(
                 )
             }
 
-            Spacer(Modifier.height(26.dp))
-
-            MenuTile(
-                title = "Словарь",
-                subtitle = if (decksCount == 0) {
-                    "Создайте первую папку со словами"
-                } else {
-                    "Папок: $decksCount · иероглиф, пиньинь, перевод"
-                },
-                icon = Icons.AutoMirrored.Filled.MenuBook,
-                glyph = "字",
-                gradient = CG.primaryGradient,
-                onClick = {
-                    sounds.click()
-                    onOpenDecks()
-                }
-            )
-
-            Spacer(Modifier.height(14.dp))
-
-            MenuTile(
-                title = "Игры",
-                subtitle = "«Найди пару» — тренировка на скорость и память",
-                icon = Icons.Filled.SportsEsports,
-                glyph = "戏",
-                gradient = CG.goldGradient,
-                onClick = {
-                    sounds.click()
-                    onOpenGames()
-                }
-            )
-
-            Spacer(Modifier.height(14.dp))
-
-            MenuTile(
-                title = "Статистика",
-                subtitle = "График по дням, слабые слова, рекорды",
-                icon = Icons.Filled.Insights,
-                glyph = "📊",
-                gradient = CG.primaryGradient,
-                onClick = {
-                    sounds.click()
-                    onOpenStats()
-                }
-            )
-
-            Spacer(Modifier.height(14.dp))
-
-            MenuTile(
-                title = "Избранное",
-                subtitle = "Слова со звёздочкой — своя подборка для игр",
-                icon = Icons.Filled.Star,
-                glyph = "⭐",
-                gradient = CG.goldGradient,
-                onClick = {
-                    sounds.click()
-                    onOpenFavorites()
-                }
-            )
-
-            Spacer(Modifier.height(14.dp))
-
-            MenuTile(
-                title = "Настройки",
-                subtitle = "Тема день/ночь, музыка, экспорт словаря в CSV",
-                icon = Icons.Filled.Settings,
-                glyph = "⚙️",
-                gradient = CG.audioGradient,
-                onClick = {
-                    sounds.click()
-                    onOpenSettings()
-                }
-            )
-
-            Spacer(Modifier.height(26.dp))
-
-            GlassCard(contentPadding = androidx.compose.foundation.layout.PaddingValues(18.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = "🐉", fontSize = 26.sp)
-                    Spacer(Modifier.width(12.dp))
-                    Column {
-                        Text(
-                            text = "Как это работает",
-                            style = MaterialTheme.typography.titleSmall,
-                            color = TextPrimary
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            text = "1. Запишите слова в папки\n" +
-                                "2. Выберите папки и число карт\n" +
-                                "3. Найдите пару каждому слову",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = TextSecondary
-                        )
-                    }
-                }
-            }
-
             Spacer(Modifier.height(30.dp))
+
             Text(
-                text = "Учись понемногу, но каждый день 🌸",
+                text = "Разделы — в панели внизу экрана",
                 style = MaterialTheme.typography.labelMedium,
                 color = TextMuted,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth()
             )
-            Spacer(Modifier.height(24.dp))
+
+            Spacer(Modifier.height(28.dp))
         }
     }
 }

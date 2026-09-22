@@ -79,7 +79,7 @@ import java.util.Locale
 @Composable
 fun StatsScreen(
     viewModel: DeckViewModel,
-    onBack: () -> Unit,
+    onBack: (() -> Unit)? = null,
     onTrainHardWords: () -> Unit
 ) {
     val sounds = LocalSounds.current
@@ -112,9 +112,11 @@ fun StatsScreen(
                 title = "Статистика",
                 subtitle = "Прогресс по дням и слабые слова",
                 emoji = "📊",
-                onBack = {
-                    sounds.whoosh()
-                    onBack()
+                onBack = onBack?.let { handler ->
+                    {
+                        sounds.whoosh()
+                        handler()
+                    }
                 }
             )
 

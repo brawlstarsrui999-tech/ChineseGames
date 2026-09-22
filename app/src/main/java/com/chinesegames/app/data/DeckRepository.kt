@@ -11,7 +11,8 @@ class DeckRepository(
     private val deckDao: DeckDao,
     private val wordDao: WordDao,
     private val statsDao: StatsDao,
-    private val favoriteDao: FavoriteDao
+    private val favoriteDao: FavoriteDao,
+    private val hskDao: HskDao
 ) {
 
     /* ----------------------------- Папки ----------------------------- */
@@ -33,10 +34,21 @@ class DeckRepository(
     suspend fun createDeck(name: String, emoji: String): Long =
         deckDao.insert(Deck(name = name.trim(), emoji = emoji))
 
-    suspend fun updateDeck(deck: Deck) = deckDao.update(deck)
+    /** Системную папку переименовывать нельзя — иначе курс потеряет её. */
+    suspend fun updateDeck(deck: Deck) {
+        if (deck.isSystem) {
+            deckDao.update(deck.copy(name = Deck.LEARNED_DECK, emoji = Deck.LEARNED_EMOJI))
+        } else {
+            deckDao.update(deck)
+        }
+    }
 
-    /** Удаляем папку вместе со статистикой и избранным по её словам. */
+    /**
+     * Удаляем папку вместе со статистикой и избранным по её словам.
+     * Системную папку «Выученное» удалить нельзя — в ней слова из курса.
+     */
     suspend fun deleteDeck(deck: Deck) {
+        if (deck.isSystem) return
         val words = wordDao.getByDeck(deck.id)
         if (words.isNotEmpty()) {
             val ids = words.map { it.id }
@@ -216,6 +228,137 @@ class DeckRepository(
                 )
             )
         }
+    }
+
+
+    /* --------------------- Курс «Поэтапное изучение» --------------------- */
+
+    /** Прогресс всех групп, экзаменов и разделов предложений — одним потоком. */
+    val hskGroups: Flow<List<HskGroupProgress>> = hskDao.observeGroups()
+
+    val hskExams: Flow<List<HskExam>> = hskDao.observeExams()
+
+    val hskSentenceTopics: Flow<List<HskSentenceProgress>> = hskDao.observeSentenceTopics()
+
+    val learnedGroupsCount: Flow<Int> = hskDao.observeLearnedGroups().map { it ?: 0 }
+
+    /**
+     * Системная папка «Выученное»: создаётся один раз и дальше только пополняется.
+     */
+    suspend fun learnedDeckId(): Long {
+        deckDao.getByName(Deck.LEARNED_DECK)?.let { deck ->
+            if (!deck.isSystem) {
+                deckDao.update(deck.copy(isSystem = true, emoji = Deck.LEARNED_EMOJI))
+            }
+            return deck.id
+        }
+        return deckDao.insert(
+            Deck(
+                name = Deck.LEARNED_DECK,
+                emoji = Deck.LEARNED_EMOJI,
+                isSystem = true
+            )
+        )
+    }
+
+    /**
+     * Слова выученной группы уезжают в папку «Выученное».
+     * Дубликаты (тот же иероглиф и перевод) не добавляем.
+     */
+    suspend fun addLearnedWords(words: List<HskWordData>): Int {
+        if (words.isEmpty()) return 0
+        val deckId = learnedDeckId()
+        val existing = wordDao.getByDeck(deckId)
+            .map { it.hanzi.trim() to it.translation.trim() }
+            .toHashSet()
+        var added = 0
+        words.forEach { word ->
+            val key = word.hanzi.trim() to word.translation.trim()
+            if (existing.contains(key)) return@forEach
+            existing.add(key)
+            wordDao.insert(
+                Word(
+                    deckId = deckId,
+                    hanzi = word.hanzi.trim(),
+                    pinyin = word.pinyin.trim(),
+                    translation = word.translation.trim()
+                )
+            )
+            added++
+        }
+        return added
+    }
+
+    suspend fun groupProgress(key: String): HskGroupProgress? = hskDao.getGroup(key)
+
+    /** Записываем результат игры в группе: бит игры + попытка. */
+    suspend fun registerGroupGame(
+        key: String,
+        level: Int,
+        topicId: String,
+        groupIndex: Int,
+        gameBit: Int,
+        passed: Boolean,
+        score: Int
+    ): HskGroupProgress {
+        val old = hskDao.getGroup(key)
+        val mask = if (passed) (old?.passedMask ?: 0) or gameBit else (old?.passedMask ?: 0)
+        val learned = Integer.bitCount(mask) >= HskCourse.GAMES_PER_GROUP
+        val progress = HskGroupProgress(
+            groupKey = key,
+            level = level,
+            topicId = topicId,
+            groupIndex = groupIndex,
+            passedMask = mask,
+            attempts = (old?.attempts ?: 0) + 1,
+            bestScore = maxOf(old?.bestScore ?: 0, score),
+            learned = learned,
+            updatedAt = System.currentTimeMillis()
+        )
+        hskDao.upsertGroup(progress)
+        return progress
+    }
+
+    suspend fun examResult(level: Int): HskExam? = hskDao.getExam(level)
+
+    suspend fun registerExam(level: Int, correct: Int, asked: Int, score: Int): HskExam {
+        val accuracy = if (asked == 0) 0f else correct.toFloat() / asked
+        val passed = accuracy >= HskCourse.EXAM_PASS
+        val old = hskDao.getExam(level)
+        val exam = HskExam(
+            level = level,
+            passed = passed || (old?.passed == true),
+            bestAccuracy = maxOf(old?.bestAccuracy ?: 0f, accuracy),
+            bestScore = maxOf(old?.bestScore ?: 0, score),
+            bestCorrect = maxOf(old?.bestCorrect ?: 0, correct),
+            asked = asked,
+            takenAt = System.currentTimeMillis()
+        )
+        hskDao.upsertExam(exam)
+        return exam
+    }
+
+    suspend fun sentenceProgress(key: String): HskSentenceProgress? = hskDao.getSentenceTopic(key)
+
+    suspend fun registerSentenceGame(
+        key: String,
+        level: Int,
+        topicId: String,
+        gameBit: Int,
+        passed: Boolean
+    ): HskSentenceProgress {
+        val old = hskDao.getSentenceTopic(key)
+        val mask = if (passed) (old?.passedMask ?: 0) or gameBit else (old?.passedMask ?: 0)
+        val progress = HskSentenceProgress(
+            topicKey = key,
+            level = level,
+            topicId = topicId,
+            passedMask = mask,
+            attempts = (old?.attempts ?: 0) + 1,
+            updatedAt = System.currentTimeMillis()
+        )
+        hskDao.upsertSentenceTopic(progress)
+        return progress
     }
 
     /* ---------------------------- CSV-обмен ---------------------------- */

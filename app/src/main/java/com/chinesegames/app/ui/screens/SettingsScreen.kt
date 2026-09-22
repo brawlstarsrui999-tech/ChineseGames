@@ -65,6 +65,7 @@ import com.chinesegames.app.ui.components.PixelLanternRow
 import com.chinesegames.app.ui.components.PixelTag
 import com.chinesegames.app.ui.components.PurpleBackground
 import com.chinesegames.app.ui.components.SectionTitle
+import com.chinesegames.app.ui.components.SelectChip
 import com.chinesegames.app.ui.components.VSpace
 import com.chinesegames.app.ui.decksLabel
 import com.chinesegames.app.ui.theme.CG
@@ -84,6 +85,7 @@ import com.chinesegames.app.ui.theme.TextSecondary
 import com.chinesegames.app.ui.theme.VividPurple
 import com.chinesegames.app.ui.wordsLabel
 import com.chinesegames.app.data.CsvImportSummary
+import com.chinesegames.app.data.DisplayMode
 import com.chinesegames.app.data.ThemeMode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -96,7 +98,7 @@ import kotlinx.coroutines.withContext
 @Composable
 fun SettingsScreen(
     viewModel: DeckViewModel,
-    onBack: () -> Unit
+    onBack: (() -> Unit)? = null
 ) {
     val sounds = LocalSounds.current
     val music = LocalMusic.current
@@ -157,9 +159,11 @@ fun SettingsScreen(
                 title = "Настройки",
                 subtitle = "Тема, музыка, словарь",
                 emoji = "⚙️",
-                onBack = {
-                    sounds.whoosh()
-                    onBack()
+                onBack = onBack?.let { handler ->
+                    {
+                        sounds.whoosh()
+                        handler()
+                    }
                 }
             )
 
@@ -265,6 +269,41 @@ fun SettingsScreen(
                         accent = MintAccent
                     ) {
                         settingsStore.setSrsFirst(it)
+                        sounds.click()
+                    }
+                }
+
+                VSpace(24.dp)
+                SectionTitle("Отображение слов")
+                VSpace(10.dp)
+                GlassCard(contentPadding = PaddingValues(16.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        DisplayMode.entries.forEach { mode ->
+                            SelectChip(
+                                text = mode.shortTitle,
+                                selected = settings.displayMode == mode,
+                                onClick = {
+                                    settingsStore.setDisplayMode(mode)
+                                    sounds.click()
+                                }
+                            )
+                        }
+                    }
+                    VSpace(10.dp)
+                    Text(
+                        text = settings.displayMode.hint,
+                        style = PixelType.caption,
+                        color = TextMuted
+                    )
+                    VSpace(14.dp)
+                    ToggleRow(
+                        icon = Icons.AutoMirrored.Filled.VolumeUp,
+                        title = "Озвучка слов после ответа",
+                        subtitle = "После верного и неверного ответа слово произносится вслух",
+                        checked = settings.speakWords,
+                        accent = SkyAccent
+                    ) {
+                        settingsStore.setSpeakWords(it)
                         sounds.click()
                     }
                 }

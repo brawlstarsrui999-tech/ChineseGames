@@ -59,35 +59,41 @@ class GameSounds(context: Context) {
         pool.play(id, volume, volume, 1, 0, rate.coerceIn(0.5f, 2f))
     }
 
+    /*
+     * Громкости намеренно невысокие: сэмплы сами по себе сделаны мягкими
+     * (см. tools/generate_sounds.py), а здесь мы ещё и приглушаем их,
+     * чтобы эффекты не «резали уши» при частом повторении.
+     */
+
     /** Мягкий щелчок интерфейса. */
-    fun click() = play(R.raw.click, 0.45f)
+    fun click() = play(R.raw.click, 0.22f)
 
     /** Переворот карточки. */
-    fun flip() = play(R.raw.flip, 0.7f)
+    fun flip() = play(R.raw.flip, 0.36f)
 
     /** Пара найдена. */
-    fun match() = play(R.raw.match, 0.85f)
+    fun match() = play(R.raw.match, 0.5f)
 
     /** Комбо: с каждым уровнем тон чуть выше. */
-    fun combo(level: Int) = play(R.raw.combo, 0.85f, 1f + (level.coerceIn(1, 6) - 1) * 0.07f)
+    fun combo(level: Int) = play(R.raw.combo, 0.45f, 1f + (level.coerceIn(1, 6) - 1) * 0.05f)
 
     /** Ошибка. */
-    fun error() = play(R.raw.error, 0.65f)
+    fun error() = play(R.raw.error, 0.32f)
 
     /** Победная фанфара. */
-    fun win() = play(R.raw.win, 0.9f)
+    fun win() = play(R.raw.win, 0.55f)
 
     /** Звёздочка на экране победы. */
-    fun star(index: Int) = play(R.raw.star, 0.8f, 1f + index * 0.14f)
+    fun star(index: Int) = play(R.raw.star, 0.4f, 1f + index * 0.1f)
 
     /** Переход между экранами. */
-    fun whoosh() = play(R.raw.whoosh, 0.4f)
+    fun whoosh() = play(R.raw.whoosh, 0.2f)
 
     /** Лопающийся пузырь (игра «Bubble pop»). */
-    fun pop() = play(R.raw.pop, 0.75f)
+    fun pop() = play(R.raw.pop, 0.4f)
 
     /** Тик обратного отсчёта/таймера. */
-    fun tick() = play(R.raw.click, 0.3f, 1.35f)
+    fun tick() = play(R.raw.click, 0.14f, 1.2f)
 
     fun release() {
         try {

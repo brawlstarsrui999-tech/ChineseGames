@@ -112,12 +112,14 @@ class QuizViewModel(app: Application) : AndroidViewModel(app) {
     private val repo: DeckRepository = (app as ChineseGamesApplication).repository
     private val sounds = (app as ChineseGamesApplication).sounds
     private val speaker = (app as ChineseGamesApplication).speaker
+    private val settings = (app as ChineseGamesApplication).settings
 
     private val _state = MutableStateFlow(QuizUiState())
     val state: StateFlow<QuizUiState> = _state.asStateFlow()
 
     private var tickJob: Job? = null
     private var advanceJob: Job? = null
+    private var speechJob: Job? = null
 
     /** Качество ответа по каждому слову — уходит в статистику в конце. */
     private val wordQuality = HashMap<Long, Float>()
@@ -347,6 +349,8 @@ class QuizViewModel(app: Application) : AndroidViewModel(app) {
                     sparkKey = it.sparkKey + 1
                 )
             }
+            // После верного ответа слово произносится вслух — так оно запоминается.
+            speakAnswer(word.hanzi)
             scheduleNext(if (s.config.kind == GameKind.SPRINT) 380L else 700L)
         } else {
             sounds.error()
@@ -364,6 +368,8 @@ class QuizViewModel(app: Application) : AndroidViewModel(app) {
                     shakeKey = it.shakeKey + 1
                 )
             }
+            // Ошиблись — всё равно проговариваем слово: слышим, что искали.
+            speakAnswer(word.hanzi)
             scheduleNext(if (s.config.kind == GameKind.SPRINT) 900L else 1_400L)
         }
     }
@@ -376,6 +382,7 @@ class QuizViewModel(app: Application) : AndroidViewModel(app) {
         sounds.error()
         wordMistakes[word.id] = (wordMistakes[word.id] ?: 0) + 1
         wordQuality[word.id] = 0.1f
+        speakAnswer(word.hanzi)
         _state.update {
             it.copy(
                 revealed = true,
@@ -388,6 +395,19 @@ class QuizViewModel(app: Application) : AndroidViewModel(app) {
             )
         }
         scheduleNext(1_300L)
+    }
+
+    /**
+     * Озвучка слова после ответа (настройка «Озвучка слов»). Небольшая пауза —
+     * чтобы звук «верно/мимо» не обрезал начало слова.
+     */
+    private fun speakAnswer(hanzi: String) {
+        if (!settings.settings.speakWords || hanzi.isBlank()) return
+        speechJob?.cancel()
+        speechJob = viewModelScope.launch {
+            delay(320)
+            if (isActive) speaker.speak(hanzi)
+        }
     }
 
     /** «Не знаю» — та же ошибка, но без ожидания таймера. */
@@ -550,6 +570,7 @@ class QuizViewModel(app: Application) : AndroidViewModel(app) {
         super.onCleared()
         tickJob?.cancel()
         advanceJob?.cancel()
+        speechJob?.cancel()
     }
 
     companion object {

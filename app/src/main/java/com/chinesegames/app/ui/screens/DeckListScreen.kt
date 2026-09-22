@@ -24,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.DropdownMenu
@@ -78,7 +79,7 @@ fun DeckListScreen(
     viewModel: DeckViewModel,
     favoritesCount: Int,
     hardWordsCount: Int,
-    onBack: () -> Unit,
+    onBack: (() -> Unit)? = null,
     onOpenDeck: (Long) -> Unit,
     onOpenFavorites: () -> Unit,
     onOpenHardWords: () -> Unit
@@ -107,9 +108,11 @@ fun DeckListScreen(
             CgTopBar(
                 title = "Словарь",
                 subtitle = if (decks.isEmpty()) "Пока пусто" else decksLabel(decks.size),
-                onBack = {
-                    sounds.whoosh()
-                    onBack()
+                onBack = onBack?.let { handler ->
+                    {
+                        sounds.whoosh()
+                        handler()
+                    }
                 }
             )
 
@@ -331,36 +334,48 @@ private fun DeckRow(
 
             Spacer(Modifier.width(6.dp))
 
-            Box {
+            // Системную папку «Выученное» нельзя переименовать или удалить
+            if (deck.isSystem) {
                 Icon(
-                    imageVector = Icons.Filled.MoreVert,
-                    contentDescription = "Меню папки",
+                    imageVector = Icons.Filled.Lock,
+                    contentDescription = "Системная папка",
                     tint = TextMuted,
                     modifier = Modifier
                         .size(36.dp)
-                        .clickable { menuOpen = true }
-                        .padding(6.dp)
+                        .padding(7.dp)
                 )
-                DropdownMenu(
-                    expanded = menuOpen,
-                    onDismissRequest = { menuOpen = false }
-                ) {
-                    DropdownMenuItem(
-                        text = { Text("Изменить") },
-                        leadingIcon = { Icon(Icons.Filled.Edit, contentDescription = null) },
-                        onClick = {
-                            menuOpen = false
-                            onEdit()
-                        }
+            } else {
+                Box {
+                    Icon(
+                        imageVector = Icons.Filled.MoreVert,
+                        contentDescription = "Меню папки",
+                        tint = TextMuted,
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clickable { menuOpen = true }
+                            .padding(6.dp)
                     )
-                    DropdownMenuItem(
-                        text = { Text("Удалить", color = RoseAccent) },
-                        leadingIcon = { Icon(Icons.Filled.Delete, contentDescription = null) },
-                        onClick = {
-                            menuOpen = false
-                            onDelete()
-                        }
-                    )
+                    DropdownMenu(
+                        expanded = menuOpen,
+                        onDismissRequest = { menuOpen = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Изменить") },
+                            leadingIcon = { Icon(Icons.Filled.Edit, contentDescription = null) },
+                            onClick = {
+                                menuOpen = false
+                                onEdit()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Удалить", color = RoseAccent) },
+                            leadingIcon = { Icon(Icons.Filled.Delete, contentDescription = null) },
+                            onClick = {
+                                menuOpen = false
+                                onDelete()
+                            }
+                        )
+                    }
                 }
             }
         }

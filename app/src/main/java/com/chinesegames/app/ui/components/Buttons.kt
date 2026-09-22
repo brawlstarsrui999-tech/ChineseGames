@@ -186,6 +186,8 @@ fun CgTopBar(
     modifier: Modifier = Modifier,
     subtitle: String? = null,
     emoji: String? = null,
+    icon: ImageVector? = null,
+    iconTint: Color = LavenderGlow,
     onBack: (() -> Unit)? = null,
     actions: @Composable RowScope.() -> Unit = {}
 ) {
@@ -199,7 +201,15 @@ fun CgTopBar(
         }
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                if (emoji != null) {
+                if (icon != null) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = iconTint,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                } else if (emoji != null) {
                     Text(text = emoji, fontSize = 22.sp)
                     Spacer(Modifier.width(8.dp))
                 }

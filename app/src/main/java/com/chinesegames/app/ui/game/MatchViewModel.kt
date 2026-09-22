@@ -7,6 +7,7 @@ import com.chinesegames.app.ChineseGamesApplication
 import com.chinesegames.app.data.DeckRepository
 import com.chinesegames.app.data.MatchResult
 import com.chinesegames.app.data.Word
+import com.chinesegames.app.ui.WordDisplay
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -132,6 +133,17 @@ class MatchViewModel(app: Application) : AndroidViewModel(app) {
     private val wordMistakes = HashMap<Long, Int>()
     private val wordsInGame = LinkedHashSet<Long>()
 
+    /**
+     * Карточки, которые игрок уже видел открытыми (в прошлых попытках или
+     * потому что режим держит их открытыми). Ошибка по слову засчитывается
+     * только если его карточка уже попадалась: в «Найди пару» слова ищут
+     * по памяти, а не потому что их не знаешь.
+     */
+    private val seenCards = HashSet<Int>()
+
+    /** Озвучка слов после ответа — по очереди, чтобы не перебивать друг друга. */
+    private var speechJob: Job? = null
+
     /* --------------------------- Старт партии --------------------------- */
 
     fun start(deckIds: List<Long>, pairsRequested: Int, mode: GameMode, previewSeconds: Int = 0) {
@@ -161,9 +173,12 @@ class MatchViewModel(app: Application) : AndroidViewModel(app) {
     ) {
         timerJob?.cancel()
         messageJob?.cancel()
+        speechJob?.cancel()
         wordMistakes.clear()
         wordsInGame.clear()
+        seenCards.clear()
 
+        val display = settings.settings.displayMode
         val pairs = pairsRequested.coerceIn(MIN_PAIRS, minOf(MAX_PAIRS, source.size))
         val chosen = if (exactWords) source.take(pairs) else source.take(pairs)
 
@@ -178,8 +193,8 @@ class MatchViewModel(app: Application) : AndroidViewModel(app) {
                 pairId = index,
                 wordId = word.id,
                 kind = CardKind.HANZI,
-                main = word.hanzi,
-                sub = word.pinyin.ifBlank { null },
+                main = WordDisplay.main(word, display),
+                sub = WordDisplay.sub(word, display),
                 hanzi = word.hanzi
             )
             val partnerCard = when (mode) {
@@ -206,6 +221,8 @@ class MatchViewModel(app: Application) : AndroidViewModel(app) {
             if (mode == GameMode.RUSSIAN_TO_HANZI || mode == GameMode.AUDIO_TO_HANZI) {
                 faceUp.add(hanziCard.id)
             }
+            // Открытые по умолчанию карточки игрок видит сразу — они «уже видены».
+            seenCards.addAll(faceUp)
             cards.add(hanziCard)
             cards.add(partnerCard)
         }
@@ -260,12 +277,19 @@ class MatchViewModel(app: Application) : AndroidViewModel(app) {
         if (isMatch) {
             onMatch(first, card)
         } else {
-            onMiss(first, card)
+            onMiss(
+                first = first,
+                second = card,
+                firstWasSeen = seenCards.contains(first.id),
+                secondWasSeen = seenCards.contains(card.id)
+            )
         }
     }
 
     private fun onMatch(first: MatchCard, second: MatchCard) {
         sounds.match()
+        seenCards.add(first.id)
+        seenCards.add(second.id)
 
         val combo = _state.value.combo + 1
         val base = 100
@@ -273,7 +297,8 @@ class MatchViewModel(app: Application) : AndroidViewModel(app) {
         val gained = base + comboBonus
 
         if (combo >= 2) sounds.combo(combo)
-        first.hanzi.takeIf { it.isNotBlank() }?.let { speaker.speak(it) }
+        // Верный ответ — проговариваем слово, так оно лучше запоминается.
+        speakWords(listOf(first.hanzi, second.hanzi))
 
         _state.update { s ->
             val found = s.pairsFound + 1
@@ -298,14 +323,29 @@ class MatchViewModel(app: Application) : AndroidViewModel(app) {
     /**
      * Промах: обе карточки остаются открытыми несколько секунд —
      * именно за это время игрок успевает запомнить, где что лежит.
+     *
+     * В статистику слова ошибка идёт только если карточку уже открывали раньше:
+     * первый промах — это поиск пары, а не признак того, что слово не выучено.
      */
-    private fun onMiss(first: MatchCard, second: MatchCard) {
+    private fun onMiss(
+        first: MatchCard,
+        second: MatchCard,
+        firstWasSeen: Boolean,
+        secondWasSeen: Boolean
+    ) {
         sounds.error()
 
-        wordMistakes[first.wordId] = (wordMistakes[first.wordId] ?: 0) + 1
-        if (second.wordId != first.wordId) {
+        if (firstWasSeen) {
+            wordMistakes[first.wordId] = (wordMistakes[first.wordId] ?: 0) + 1
+        }
+        if (secondWasSeen && second.wordId != first.wordId) {
             wordMistakes[second.wordId] = (wordMistakes[second.wordId] ?: 0) + 1
         }
+        seenCards.add(first.id)
+        seenCards.add(second.id)
+
+        // Промах — тоже озвучиваем: звучат оба слова, которые не совпали.
+        speakWords(listOf(first.hanzi, second.hanzi))
 
         val wrong = setOf(first.id, second.id)
         val previewMillis = when (_state.value.mode) {
@@ -484,6 +524,23 @@ class MatchViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /**
+     * Озвучка слов после ответа (настройка «Озвучка слов»). Слова произносятся
+     * по очереди с паузой, чтобы не перебивать друг друга.
+     */
+    private fun speakWords(words: List<String>) {
+        if (!settings.settings.speakWords) return
+        val spoken = words.map { it.trim() }.filter { it.isNotEmpty() }.distinct()
+        if (spoken.isEmpty()) return
+        speechJob?.cancel()
+        speechJob = viewModelScope.launch {
+            spoken.forEachIndexed { index, word ->
+                if (index > 0) delay(1_100)
+                if (isActive) speaker.speak(word)
+            }
+        }
+    }
+
     private fun showMessageTemporarily() {
         messageJob?.cancel()
         messageJob = viewModelScope.launch {
@@ -496,6 +553,7 @@ class MatchViewModel(app: Application) : AndroidViewModel(app) {
         super.onCleared()
         timerJob?.cancel()
         messageJob?.cancel()
+        speechJob?.cancel()
     }
 
     companion object {
