@@ -183,6 +183,9 @@ app/src/main/java/com/chinesegames/app/
 * `tools/hsk_sentences.py` — 180 предложений курса (6 уровней × 5 разделов × 6 предложений).
 * `tools/hsk_extra_rus.py` — русские переводы для слов, которых не было в исходном списке.
 * `tools/check_syntax.py` — быстрая проверка синтаксиса всех Kotlin-файлов (kopyt), без сборки APK.
+* `tools/check_refs.py` — статические проверки без компилятора: голые имена иконок Material
+  (`import ...filled.Star` не заменяет `Icons.Filled.Star`), иконки без импорта, неизвестные
+  именованные аргументы, непереда́нные обязательные параметры, битые внутренние импорты.
 * `tools/generate_music.py` — **генератор фоновой музыки** (два бесшовных лупа → OGG).
 * `tools/generate_icons.py` — **генератор иконок** (Pillow + Noto CJK → все mipmap-плотности).
 * `app/src/main/res/raw/*.ogg` — сами звуки и музыка, можно заменить своими (имена те же).
@@ -193,6 +196,7 @@ python3 tools/generate_music.py       # перегенерировать муз�
 python3 tools/generate_icons.py       # перегенерировать иконку
 python3 tools/generate_hsk_course.py  # пересобрать материал курса в assets/hsk
 python3 tools/check_syntax.py         # проверка синтаксиса Kotlin-файлов
+python3 tools/check_refs.py           # проверки ссылок и аргументов (нужен только Python 3)
 ```
 
 ---

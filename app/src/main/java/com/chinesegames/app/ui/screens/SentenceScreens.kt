@@ -396,7 +396,7 @@ private fun SentenceHeader(
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 6.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             CircleIconButton(
-                icon = ArrowBack,
+                icon = Icons.AutoMirrored.Filled.ArrowBack,
                 contentDescription = "Назад"
             ) {
                 sounds.whoosh()
