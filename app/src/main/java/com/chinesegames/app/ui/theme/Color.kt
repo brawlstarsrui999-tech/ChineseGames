@@ -167,7 +167,9 @@ object CG {
         return cache.getOrPut(name, build) as T
     }
 
-    private fun shifted(vararg colors: Color): List<Color> =
+    // Color — inline/value type Compose, поэтому vararg<Color> запрещён компилятором.
+    // Список сохраняет ту же читаемость без упаковки vararg-массива.
+    private fun shifted(colors: List<Color>): List<Color> =
         colors.map { it.shiftHue(CgPaletteState.hueShift) }
 
     val background: Brush
@@ -204,7 +206,7 @@ object CG {
             if (CgPaletteState.night) {
                 listOf(LavenderGlow.copy(alpha = 0.45f), Color.Transparent, FuchsiaGlow.copy(alpha = 0.35f))
             } else {
-                shifted(Color(0x668B5CF6), Color(0x22FFFFFF), Color(0x55D946EF))
+                shifted(listOf(Color(0x668B5CF6), Color(0x22FFFFFF), Color(0x55D946EF)))
             }
         }
 
