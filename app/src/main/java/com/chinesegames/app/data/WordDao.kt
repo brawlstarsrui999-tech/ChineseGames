@@ -34,6 +34,12 @@ interface WordDao {
     @Insert
     suspend fun insert(word: Word): Long
 
+    @Insert
+    suspend fun insertAll(words: List<Word>)
+
+    @Query("SELECT hanzi FROM words WHERE deckId = :deckId")
+    suspend fun hanziInDeck(deckId: Long): List<String>
+
     @Update
     suspend fun update(word: Word)
 

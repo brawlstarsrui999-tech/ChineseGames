@@ -254,10 +254,13 @@ fun StatsScreen(
                 } else {
                     GlassCard(contentPadding = PaddingValues(16.dp)) {
                         val statsByDeck = deckStats.associateBy { it.deckId }
-                        decks.forEach { deck ->
-                            val stat = statsByDeck[deck.id]
-                            val total = stat?.total ?: 0
-                            val learned = stat?.learned ?: 0
+                        // разделы курса сворачиваем в папку уровня («HSK 3»)
+                        val childrenOf = decks.filter { it.parentId != null }.groupBy { it.parentId!! }
+                        decks.filter { it.parentId == null }.forEach { deck ->
+                            val own = statsByDeck[deck.id]
+                            val kids = childrenOf[deck.id].orEmpty()
+                            val total = (own?.total ?: 0) + kids.sumOf { statsByDeck[it.id]?.total ?: 0 }
+                            val learned = (own?.learned ?: 0) + kids.sumOf { statsByDeck[it.id]?.learned ?: 0 }
                             Column(Modifier.fillMaxWidth().padding(vertical = 7.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(text = deck.emoji, fontSize = 16.sp)

@@ -19,7 +19,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         HskExam::class,
         HskSentenceProgress::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -107,6 +107,20 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * v4: папки словаря «HSK 1» … «HSK 7» с подпапками-разделами курса:
+         * у папки появились родитель, ключ материала курса и порядок.
+         */
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `decks` ADD COLUMN `parentId` INTEGER")
+                db.execSQL("ALTER TABLE `decks` ADD COLUMN `courseKey` TEXT")
+                db.execSQL(
+                    "ALTER TABLE `decks` ADD COLUMN `sortOrder` INTEGER NOT NULL DEFAULT 0"
+                )
+            }
+        }
+
         @Volatile
         private var instance: AppDatabase? = null
 
@@ -116,7 +130,7 @@ abstract class AppDatabase : RoomDatabase() {
                 AppDatabase::class.java,
                 DB_NAME
             )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                 .fallbackToDestructiveMigration()
                 .build()
                 .also { instance = it }

@@ -73,9 +73,10 @@ private data class Petal(
 fun PixelPetalLayer(
     modifier: Modifier = Modifier,
     count: Int = 12,
-    alpha: Float = 1f
+    alpha: Float = 1f,
+    sprites: List<PixelSprite> = DecorSprites
 ) {
-    val petals = remember(count) {
+    val petals = remember(count, sprites) {
         val rnd = Random(4242)
         List(count) {
             Petal(
@@ -86,7 +87,7 @@ fun PixelPetalLayer(
                 size = 9f + rnd.nextFloat() * 11f,
                 spin = if (rnd.nextBoolean()) 18f else -14f,
                 alpha = 0.20f + rnd.nextFloat() * 0.35f,
-                spriteIndex = rnd.nextInt(DecorSprites.size)
+                spriteIndex = rnd.nextInt(sprites.size.coerceAtLeast(1))
             )
         }
     }
@@ -109,7 +110,7 @@ fun PixelPetalLayer(
                 progress > 0.9f -> (1f - progress) / 0.1f
                 else -> 1f
             }
-            val sprite = DecorSprites[p.spriteIndex]
+            val sprite = sprites[p.spriteIndex % sprites.size]
             rotate(degrees = sin(timeSec * 0.6f + p.start * 6f) * p.spin, pivot = Offset(x, y)) {
                 drawSprite(
                     sprite = sprite,

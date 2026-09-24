@@ -37,7 +37,10 @@ class GameSounds(context: Context) {
         listOf(
             R.raw.click, R.raw.flip, R.raw.match,
             R.raw.combo, R.raw.error, R.raw.win,
-            R.raw.star, R.raw.whoosh, R.raw.pop
+            R.raw.star, R.raw.whoosh, R.raw.pop,
+            // Аниме-набор (стиль «Аниме» из магазина украшений)
+            R.raw.anime_pop, R.raw.anime_kira, R.raw.anime_don,
+            R.raw.anime_yay, R.raw.anime_combo
         ).forEach { res ->
             sampleIds[res] = try {
                 pool.load(context.applicationContext, res, 1)
@@ -52,11 +55,31 @@ class GameSounds(context: Context) {
         get() = prefs.getBoolean(KEY_MUTED, false)
         set(value) = prefs.edit().putBoolean(KEY_MUTED, value).apply()
 
+    /**
+     * Аниме-звуки вместо стандартных (включаются вместе со стилем «Аниме»).
+     * Переключение мгновенное: сэмплы обоих наборов уже загружены.
+     */
+    @Volatile
+    var animeSet: Boolean = false
+
     private fun play(res: Int, volume: Float, rate: Float = 1f) {
         if (muted) return
-        val id = sampleIds[res] ?: return
+        val actual = if (animeSet) animeVariant(res) else res
+        val id = sampleIds[actual] ?: return
         if (id == 0 || !ready.contains(id)) return
         pool.play(id, volume, volume, 1, 0, rate.coerceIn(0.5f, 2f))
+    }
+
+    /** Соответствие стандартных сэмплов аниме-набору. */
+    private fun animeVariant(res: Int): Int = when (res) {
+        R.raw.click -> R.raw.anime_pop
+        R.raw.pop -> R.raw.anime_pop
+        R.raw.match -> R.raw.anime_kira
+        R.raw.star -> R.raw.anime_kira
+        R.raw.combo -> R.raw.anime_combo
+        R.raw.error -> R.raw.anime_don
+        R.raw.win -> R.raw.anime_yay
+        else -> res
     }
 
     /*

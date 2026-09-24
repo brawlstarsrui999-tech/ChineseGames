@@ -118,16 +118,27 @@ fun GameSetupScreen(
     var memorize by remember { mutableIntStateOf(preset.defaultMemorize) }
     var memorizeSeconds by remember { mutableIntStateOf(preset.defaultMemorizeSeconds) }
     var pairs by remember { mutableIntStateOf(preset.defaultPairs) }
+    var interval by remember { mutableIntStateOf(preset.defaultInterval) }
     var mode by remember { mutableStateOf(GameMode.forKind(kind)) }
     var srsFirst by remember { mutableStateOf(appSettings.srsFirst) }
 
-    // Все папки выбраны по умолчанию (или то, что пришло из «Избранного»)
+    // Верхний уровень: папки пользователя, «Выученное» и папки уровней курса
+    // (разделы курса живут внутри своих уровней и раскрываются в списке).
+    val topLevelDecks = remember(decks) { decks.filter { it.parentId == null } }
+    val ownDecks = remember(topLevelDecks) { topLevelDecks.filter { !it.isCourse } }
+    val allSourcesCount = topLevelDecks.size + countPseudo(favoritesCount, hardWordsCount)
+
+    // По умолчанию выбраны свои папки и «Избранное» (или то, что пришло снаружи);
+    // если своих слов ещё нет — играем со словами HSK 1.
     LaunchedEffect(decks, favoritesCount, hardWordsCount) {
         if (!initialized && (decks.isNotEmpty() || favoritesCount > 0 || hardWordsCount > 0)) {
             if (preselect.isEmpty()) {
-                selectedDecks = buildSet {
-                    decks.forEach { add(it.id) }
+                val own = buildSet {
+                    ownDecks.forEach { deck -> if ((wordCounts[deck.id] ?: 0) > 0) add(deck.id) }
                     if (favoritesCount > 0) add(DeckRepository.FAVORITES_ID)
+                }
+                selectedDecks = own.ifEmpty {
+                    topLevelDecks.firstOrNull { it.courseLevel == 1 }?.let { setOf(it.id) }.orEmpty()
                 }
             }
             initialized = true
@@ -192,24 +203,17 @@ fun GameSetupScreen(
                     }
                     VSpace(16.dp)
                     Box(Modifier.padding(horizontal = 16.dp)) {
+                        val everything = buildSet {
+                            topLevelDecks.forEach { add(it.id) }
+                            if (favoritesCount > 0) add(DeckRepository.FAVORITES_ID)
+                            if (hardWordsCount > 0) add(DeckRepository.HARD_WORDS_ID)
+                        }
+                        val allSelected = selectedDecks.containsAll(everything) && allSourcesCount > 0
                         DeckSelectionHeader(
-                            allSelected = selectedDecks.size >= decks.size + countPseudo(
-                                favoritesCount, hardWordsCount
-                            ),
+                            allSelected = allSelected,
                             onToggleAll = {
                                 sounds.click()
-                                selectedDecks = if (selectedDecks.size >= decks.size + countPseudo(
-                                        favoritesCount, hardWordsCount
-                                    )
-                                ) {
-                                    emptySet()
-                                } else {
-                                    buildSet {
-                                        decks.forEach { add(it.id) }
-                                        if (favoritesCount > 0) add(DeckRepository.FAVORITES_ID)
-                                        if (hardWordsCount > 0) add(DeckRepository.HARD_WORDS_ID)
-                                    }
-                                }
+                                selectedDecks = if (allSelected) emptySet() else everything
                             }
                         )
                     }
@@ -223,13 +227,9 @@ fun GameSetupScreen(
                         favoritesCount = favoritesCount,
                         hardWordsCount = hardWordsCount,
                         selected = selectedDecks,
-                        onToggle = { id ->
+                        onSelectionChange = { next ->
                             sounds.click()
-                            selectedDecks = if (selectedDecks.contains(id)) {
-                                selectedDecks - id
-                            } else {
-                                selectedDecks + id
-                            }
+                            selectedDecks = next
                         },
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
@@ -372,7 +372,32 @@ fun GameSetupScreen(
                     }
                 }
 
-                if (!preset.allowPairs && !preset.allowTotalSeconds) {
+                if (preset.allowInterval) {
+                    item {
+                        Box(Modifier.padding(horizontal = 16.dp)) { SectionTitle("Секунд на карточку") }
+                        VSpace(10.dp)
+                        ChipRow(
+                            values = preset.intervalChoices,
+                            selected = interval,
+                            label = { "$it с" },
+                            onSelect = {
+                                sounds.click()
+                                interval = it
+                            }
+                        )
+                        VSpace(8.dp)
+                        Text(
+                            text = "Половину времени карточка лежит иероглифом (звучит по-китайски), " +
+                                "потом переворачивается переводом (звучит по-русски). Интервал можно менять и во время сеанса.",
+                            style = PixelType.caption,
+                            color = TextMuted,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
+                        VSpace(18.dp)
+                    }
+                }
+
+                if (preset.allowQuestions && !preset.allowPairs && !preset.allowTotalSeconds) {
                     item {
                         Box(Modifier.padding(horizontal = 16.dp)) { SectionTitle(preset.roundsLabel) }
                         VSpace(10.dp)
@@ -488,10 +513,17 @@ fun GameSetupScreen(
                         modifier = Modifier.padding(horizontal = 16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        PixelTag(text = "MIN 3 СЛОВА", color = SkyAccent)
+                        PixelTag(
+                            text = if (preset.minWords <= 1) "ЛЮБОЕ ЧИСЛО СЛОВ" else "MIN ${preset.minWords} СЛОВА",
+                            color = SkyAccent
+                        )
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            text = "Слова выбираются случайно из выбранных папок",
+                            text = if (kind == GameKind.HANDS_FREE) {
+                                "Слова идут по кругу, пока режим не выключен"
+                            } else {
+                                "Слова выбираются случайно из выбранных папок"
+                            },
                             style = PixelType.caption,
                             color = TextMuted
                         )
@@ -538,7 +570,7 @@ fun GameSetupScreen(
                     )
                 }
                 GradientButton(
-                    text = "Начать игру",
+                    text = if (kind == GameKind.HANDS_FREE) "Включить режим" else "Начать игру",
                     icon = Icons.Filled.PlayArrow,
                     modifier = Modifier.fillMaxWidth(),
                     enabled = canStart,
@@ -554,7 +586,14 @@ fun GameSetupScreen(
                             if (kind == GameKind.MEMORY_GRID) memorizeSeconds else 0
                         )
                     } else {
-                        onStartQuiz(kind, selection, settingsToken(preset, rounds, options, secondsPerQuestion, totalSeconds, memorize, memorizeSeconds, srsFirst))
+                        onStartQuiz(
+                            kind,
+                            selection,
+                            settingsToken(
+                                preset, rounds, options, secondsPerQuestion, totalSeconds,
+                                memorize, memorizeSeconds, srsFirst, interval
+                            )
+                        )
                     }
                 }
             }
@@ -663,7 +702,8 @@ private fun settingsToken(
     totalSeconds: Int,
     memorize: Int,
     memorizeSeconds: Int,
-    srsFirst: Boolean
+    srsFirst: Boolean,
+    interval: Int
 ): String = SettingsCodec.encode(
     mapOf(
         SettingsCodec.KEY_QUESTIONS to rounds,
@@ -672,6 +712,7 @@ private fun settingsToken(
         SettingsCodec.KEY_TOTAL to totalSeconds,
         SettingsCodec.KEY_MEMORIZE to if (preset.allowMemorize) memorize else 0,
         SettingsCodec.KEY_MEMORIZE_SECONDS to memorizeSeconds,
-        SettingsCodec.KEY_SRS to if (srsFirst) 1 else 0
+        SettingsCodec.KEY_SRS to if (srsFirst) 1 else 0,
+        SettingsCodec.KEY_INTERVAL to interval
     )
 )

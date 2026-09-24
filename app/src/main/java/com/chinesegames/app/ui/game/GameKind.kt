@@ -5,7 +5,8 @@ enum class GameGroup(val title: String, val emoji: String) {
     MEMORY("Память", "🧠"),
     SPEED("Скорость", "⚡"),
     LISTENING("Аудио", "🎧"),
-    WRITING("Письмо", "✍️")
+    WRITING("Письмо", "✍️"),
+    REVIEW("Повторение", "🔁")
 }
 
 /**
@@ -83,10 +84,31 @@ enum class GameKind(
         tagline = "По иероглифу набери пиньинь",
         group = GameGroup.WRITING,
         rules = "Видите иероглиф — печатаете его пиньинь. Тоны можно не писать: «nihao» и «nǐ hǎo» принимаются одинаково."
+    ),
+    TONES(
+        id = "tones",
+        title = "Тренажёр тонов",
+        emoji = "🎼",
+        tagline = "Слушай слово → отметь тон каждого слога",
+        group = GameGroup.LISTENING,
+        rules = "Показан иероглиф, слово звучит вслух, пиньинь скрыт. Нажимайте тоны по порядку слогов: " +
+            "nǐ hǎo → 3, 3; zǎo ān → 3, 1. Для лёгкого тона (ma в māma) есть отдельная кнопка «·»."
+    ),
+    HANDS_FREE(
+        id = "handsfree",
+        title = "Без рук",
+        emoji = "🎧",
+        tagline = "Карточки листаются и озвучиваются сами",
+        group = GameGroup.REVIEW,
+        rules = "Режим для дороги и домашних дел: каждые N секунд показывается новое слово — сначала иероглиф " +
+            "с китайской озвучкой, затем карточка переворачивается и звучит перевод. Идёт по кругу, пока не выключите."
     );
 
     /** Игры, которые играются через «Найди пару» (сетка карточек). */
     val isCardGame: Boolean get() = this == MATCH || this == MEMORY_GRID
+
+    /** Режим без очков и таймера — результат в статистику не пишется. */
+    val isPassive: Boolean get() = this == HANDS_FREE
 
     companion object {
         fun fromId(id: String?): GameKind =
@@ -94,7 +116,7 @@ enum class GameKind(
 
         /** Порядок карточек в хабе игр. */
         val hubOrder: List<GameKind> = listOf(
-            MATCH, MEMORY_GRID, MEMORY_CHAIN, BUBBLE, FALLING, SPRINT, AUDIO_QUIZ, PINYIN
+            MATCH, MEMORY_GRID, MEMORY_CHAIN, BUBBLE, FALLING, SPRINT, AUDIO_QUIZ, TONES, PINYIN, HANDS_FREE
         )
     }
 }

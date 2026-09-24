@@ -45,6 +45,22 @@ private fun pixelColor(char: Char): Color = when (char) {
     'v' -> VividPurple
     'd' -> RoyalPurple
     'f' -> FuchsiaGlow
+    // Персонажи стилевых наборов и талисман
+    'S' -> CG.pixelSkin
+    'T' -> CG.pixelSkinShade
+    'B' -> CG.pixelHairBlue
+    'D' -> CG.pixelHairBlueDark
+    'R' -> CG.pixelHairRose
+    'Q' -> CG.pixelHairRoseDark
+    'H' -> CG.pixelHairDark
+    'J' -> CG.pixelHairDarkLight
+    'C' -> CG.pixelCrimson
+    'U' -> CG.pixelUniform
+    // Дракон и красное золото
+    'j' -> CG.pixelJade
+    'g' -> CG.pixelJadeDark
+    'e' -> CG.pixelScarlet
+    'E' -> CG.pixelScarletDark
     else -> CG.pixelInk
 }
 
@@ -201,6 +217,168 @@ val SparkSprite = PixelSprite(
         "wwwww",
         ".www.",
         "..w.."
+    )
+)
+
+
+/* ------------------------ Спрайты стилевых наборов ------------------------ */
+
+/** Чиби-талисман: девочка с голубыми волосами и небесным платьем. */
+val MascotSprite = PixelSprite(
+    listOf(
+        "......BBBBBB......",
+        "....BBBBBBBBBB....",
+        "...BBBBBBBBBBBB...",
+        "..BBBBBBBBBBBBBB..",
+        "..BBBDBBBBBBDBBB..",
+        ".BBBDSSSSSSSSDBBB.",
+        ".BBBSSSSSSSSSSBBB.",
+        ".BBBSSkSSSSkSSBBB.",
+        ".BBBSSbwSSbwSSBBB.",
+        ".BBBSSSSSSSSSSBBB.",
+        ".BBBSsSSSSSSsSBBB.",
+        ".BBBSSSSssSSSSBBB.",
+        ".BBB.SSSSSSSS.BBB.",
+        ".BB..wwwwwwww..BB.",
+        ".BB.wwbwwwwbww.BB.",
+        ".B..bbbbbbbbbb..B.",
+        "....bbbbbbbbbb....",
+        "....bbbbbbbbbb....",
+        ".....SS....SS.....",
+        ".....kk....kk....."
+    )
+)
+
+/** Талисман с зажмуренными от радости глазами — пока говорит. */
+val MascotHappySprite = PixelSprite(
+    listOf(
+        "......BBBBBB......",
+        "....BBBBBBBBBB....",
+        "...BBBBBBBBBBBB...",
+        "..BBBBBBBBBBBBBB..",
+        "..BBBDBBBBBBDBBB..",
+        ".BBBDSSSSSSSSDBBB.",
+        ".BBBSSSSSSSSSSBBB.",
+        ".BBBSkSkSSkSkSBBB.",
+        ".BBBSSSSSSSSSSBBB.",
+        ".BBBSSSSSSSSSSBBB.",
+        ".BBBSsSSSSSSsSBBB.",
+        ".BBBSSSSssSSSSBBB.",
+        ".BBB.SSSSSSSS.BBB.",
+        ".BB..wwwwwwww..BB.",
+        ".BB.wwbwwwwbww.BB.",
+        ".B..bbbbbbbbbb..B.",
+        "....bbbbbbbbbb....",
+        "....bbbbbbbbbb....",
+        ".....SS....SS.....",
+        ".....kk....kk....."
+    )
+)
+
+/** Вагури: мягкие розово-русые волосы, голубые глаза, белая блузка и тёмная юбка. */
+val WaguriSprite = PixelSprite(
+    listOf(
+        ".....RRRRRRRR.....",
+        "....RRRRRRRRRR....",
+        "...RRRRRRRRRRRR...",
+        "..RRRRRRRRRRRRRR..",
+        "..RRQRRRRRRRRQRR..",
+        ".RRRQSSSSSSSSQRRR.",
+        ".RRRSSSSSSSSSSRRR.",
+        ".RRRSSkSSSSkSSRRR.",
+        ".RRRSSbwSSbwSSRRR.",
+        ".RRRSSSSSSSSSSRRR.",
+        ".RRRSsSSSSSSsSRRR.",
+        ".RRRSSSSssSSSSRRR.",
+        ".RRR.SSSSSSSS.RRR.",
+        ".RRR.wwwUUwww.RRR.",
+        ".RRR.wwwwwwww.RRR.",
+        ".RRR.wwwwwwww.RRR.",
+        ".RR..UUUUUUUU..RR.",
+        ".....UUUUUUUU.....",
+        ".....SS....SS.....",
+        ".....kk....kk....."
+    )
+)
+
+/** Сукуна в теле Мэгуми: тёмные торчащие волосы, красные метки на лице, чёрная форма. */
+val SukunaSprite = PixelSprite(
+    listOf(
+        "..H....HH....H....",
+        "..HH.HHHHHH.HH..H.",
+        "..HHHHHHHHHHHHHHH.",
+        "...HHHHHHHHHHHHH..",
+        "..HHHJHHHHHHJHHH..",
+        "..HHHSSSSSSSSHHH..",
+        "..HHSSSSSSSSSSHH..",
+        "..HHSCSkSSSSkCSHH.",
+        "...SSCSCSSSSCSCS..",
+        "...SSSCwSSSSwCSS..",
+        "...SSSSSSSSSSSSS..",
+        "...SSCSSSCCSSSCS..",
+        "....SSSSSSSSSSS...",
+        "....UUUUUUUUUUU...",
+        "...UUUUUUUUUUUUU..",
+        "...UUUUUUUUUUUUU..",
+        "...UUUUUUUUUUUUU..",
+        "....UUUUUUUUUUU...",
+        ".....UU.....UU....",
+        ".....kk.....kk...."
+    )
+)
+
+/** Летящий китайский дракон: нефритовая чешуя, золотые гребни, алые усы и хвост. */
+val DragonSprite = PixelSprite(
+    listOf(
+        ".........................y..........................",
+        ".........................y...y...y..................",
+        ".....................y..jjjjjjjj.y.........yy..yy...",
+        ".................y...jjjjjjjjjjjjj........yy....yy..",
+        ".................y.jjjjjjjjjjjjjjjjj.y....jjjjjjjj..",
+        ".................jjjjjjjjjjjjjjjjjjjjj...jjjjjjjjjj.",
+        "e...............jjjjjjjgggggggggjjjjjjjjjjjjkwjjjjjj",
+        "ee.......y...yjjjjjjjgg........jgggjjjjjjjjjjjjjjjjj",
+        "jjjj.y...y.jjjjjjjjgg..........j...ggjjjjjjjjjjeeeee",
+        "eejjjjjjjjjjjjjjjgg...........y.y....ggjjjjjjjjjjjj.",
+        "e.gggjjjjjjjjjggg......................g.gggjjjjjj..",
+        ".....ggggggggg..............................jjjjj...",
+        "............j...............................gggg....",
+        "............j.......................................",
+        "...........y.y......................................"
+    )
+)
+
+/** Старинная китайская монета с квадратным отверстием. */
+val CoinSprite = PixelSprite(
+    listOf(
+        "..yyyyy..",
+        ".yyyyyyy.",
+        "yyyyyyyyy",
+        "yyykkkyyy",
+        "yyyk.kyyy",
+        "yyykkkyyy",
+        "yyyyyyyyy",
+        ".yyyyyyy.",
+        "..yyyyy.."
+    )
+)
+
+/** Китайский узел (中国结) с золотой серединой. */
+val KnotSprite = PixelSprite(
+    listOf(
+        "...r...",
+        "..rrr..",
+        ".rryrr.",
+        "rryyyrr",
+        ".rryrr.",
+        "..rrr..",
+        ".rryrr.",
+        "rryyyrr",
+        ".rryrr.",
+        "..rrr..",
+        "...r...",
+        "..r.r..",
+        "..r.r.."
     )
 )
 

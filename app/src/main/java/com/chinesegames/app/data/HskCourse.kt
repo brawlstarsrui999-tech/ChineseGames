@@ -6,11 +6,13 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
 /**
- * Курс «Поэтапное изучение»: HSK 1 → HSK 6.
+ * Курс «Поэтапное изучение»: HSK 1 → HSK 7.
  *
- * Материал лежит в `assets/hsk/` (level1.json … level6.json и sentences.json)
+ * Материал лежит в `assets/hsk/` (level1.json … level7.json и sentences.json)
  * и собран скриптом `tools/generate_hsk_course.py` из официальных списков HSK
  * (150 / 300 / 600 / 1200 / 2500 / 5000 слов) с русскими переводами из БКРС.
+ * Уровень HSK 7 — расширение: ~2400 употребительных слов нового стандарта
+ * HSK 3.0 (2021), которых нет в HSK 1–6; собран `tools/generate_hsk7.py`.
  *
  * Слова разложены по смысловым разделам («Местоимения», «Люди и семья»,
  * «Еда и напитки», «Время и погода», «Грамматика»…), каждый раздел — на
@@ -93,8 +95,8 @@ data class HskSentenceTopicData(
 /** Загрузка и кэш материала курса. */
 object HskCourse {
 
-    /** Уровней в курсе. */
-    const val LEVELS = 6
+    /** Уровней в курсе (HSK 1–6 + расширенный уровень HSK 7). */
+    const val LEVELS = 7
 
     /** Сколько вопросов в экзамене по уровню. */
     const val EXAM_QUESTIONS = 30
@@ -120,7 +122,8 @@ object HskCourse {
         3 -> 600
         4 -> 1200
         5 -> 2500
-        else -> 5000
+        6 -> 5000
+        else -> 7400
     }
 
     fun levelDescription(level: Int): String = when (level) {
@@ -129,7 +132,14 @@ object HskCourse {
         3 -> "Учёба, работа, хобби и простые рассказы о себе"
         4 -> "Развёрнутые темы: карьера, общество, природа"
         5 -> "Публицистика, наука, культура, абстрактные понятия"
-        else -> "Свободное владение: политика, экономика, литература"
+        6 -> "Свободное владение: политика, экономика, литература"
+        else -> "Новый стандарт HSK 3.0: живая лексика, которой нет в HSK 1–6"
+    }
+
+    /** Короткая подпись уровня для списков и папок словаря. */
+    fun levelSubtitle(level: Int): String = when (level) {
+        7 -> "Расширение · слова HSK 3.0"
+        else -> "Официальный список HSK"
     }
 
     suspend fun level(context: Context, level: Int): HskLevelData? = withContext(Dispatchers.IO) {

@@ -30,10 +30,12 @@ import com.chinesegames.app.ui.game.GameMode
 import com.chinesegames.app.ui.game.QuizPresets
 import com.chinesegames.app.ui.game.SettingsCodec
 import com.chinesegames.app.ui.screens.DeckDetailScreen
+import com.chinesegames.app.ui.screens.DeckFolderScreen
 import com.chinesegames.app.ui.screens.DeckListScreen
 import com.chinesegames.app.ui.screens.FavoritesScreen
 import com.chinesegames.app.ui.screens.GameSetupScreen
 import com.chinesegames.app.ui.screens.GamesHubScreen
+import com.chinesegames.app.ui.screens.HandsFreeScreen
 import com.chinesegames.app.ui.screens.HskGameScreen
 import com.chinesegames.app.ui.screens.HskGroupScreen
 import com.chinesegames.app.ui.screens.HskLevelScreen
@@ -41,13 +43,16 @@ import com.chinesegames.app.ui.screens.HskTopicScreen
 import com.chinesegames.app.ui.screens.MainMenuScreen
 import com.chinesegames.app.ui.screens.MatchGameScreen
 import com.chinesegames.app.ui.screens.PinyinGameScreen
+import com.chinesegames.app.ui.screens.PaymentScreen
 import com.chinesegames.app.ui.screens.QuizGameScreen
 import com.chinesegames.app.ui.screens.SentenceGameScreen
 import com.chinesegames.app.ui.screens.SentenceLevelScreen
 import com.chinesegames.app.ui.screens.SentenceTopicScreen
 import com.chinesegames.app.ui.screens.SettingsScreen
+import com.chinesegames.app.ui.screens.ShopScreen
 import com.chinesegames.app.ui.screens.StatsScreen
 import com.chinesegames.app.ui.screens.StudyHomeScreen
+import com.chinesegames.app.ui.screens.ToneGameScreen
 import com.chinesegames.app.ui.study.StudyViewModel
 
 /**
@@ -60,10 +65,15 @@ object Routes {
     const val FAVORITES = "favorites"
     const val STATS = "stats"
     const val SETTINGS = "settings"
+    const val SHOP = "shop"
+    const val PAYMENT = "payment/{invId}"
     const val GAMES = "games"
     const val STUDY = "study"
 
     const val DECK_DETAIL = "deck/{deckId}"
+
+    /** Папка уровня курса в словаре («HSK 3») со списком разделов. */
+    const val DECK_FOLDER = "deck_folder/{deckId}"
 
     /** Настройка партии: `setup/match`, `setup/bubble?preselect=-1` и т. д. */
     const val GAME_SETUP = "setup/{kind}?preselect={preselect}"
@@ -71,6 +81,8 @@ object Routes {
     const val MATCH_GAME = "match_game/{deckIds}/{pairs}/{mode}/{preview}"
     const val QUIZ_GAME = "quiz/{kind}/{deckIds}/{config}"
     const val PINYIN_GAME = "pinyin/{deckIds}/{config}"
+    const val TONE_GAME = "tones/{deckIds}/{config}"
+    const val HANDS_FREE = "handsfree/{deckIds}/{config}"
 
     /* ---------------------- Поэтапное изучение (HSK) ---------------------- */
 
@@ -95,8 +107,13 @@ object Routes {
     const val TOPIC_ID_ARG = "topicId"
     const val GROUP_INDEX_ARG = "groupIndex"
     const val GAME_ID_ARG = "gameId"
+    const val INVOICE_ID_ARG = "invId"
 
     fun deck(deckId: Long) = "deck/$deckId"
+
+    fun payment(invId: Long) = "payment/$invId"
+
+    fun deckFolder(deckId: Long) = "deck_folder/$deckId"
 
     fun setup(kind: GameKind, preselect: List<Long> = emptyList()) =
         // без предвыбранных папок параметр не пишем вовсе: пустое значение
@@ -112,6 +129,12 @@ object Routes {
 
     fun pinyinGame(deckIds: List<Long>, token: String) =
         "pinyin/${deckIds.joinToString(",")}/${SettingsCodec.toRoute(token)}"
+
+    fun toneGame(deckIds: List<Long>, token: String) =
+        "tones/${deckIds.joinToString(",")}/${SettingsCodec.toRoute(token)}"
+
+    fun handsFree(deckIds: List<Long>, token: String) =
+        "handsfree/${deckIds.joinToString(",")}/${SettingsCodec.toRoute(token)}"
 
     fun hskLevel(level: Int) = "hsk_level/$level"
 
@@ -218,7 +241,8 @@ fun ChineseGamesRoot(
                     totalWords = totalWords,
                     learnedWords = learnedWords,
                     gamesPlayed = games,
-                    bestScore = best
+                    bestScore = best,
+                    onOpenShop = { navController.navigate(Routes.SHOP) }
                 )
             }
 
@@ -231,8 +255,25 @@ fun ChineseGamesRoot(
                     favoritesCount = favoritesCount,
                     hardWordsCount = hardWordsCount,
                     onOpenDeck = { deckId -> navController.navigate(Routes.deck(deckId)) },
+                    onOpenFolder = { deckId -> navController.navigate(Routes.deckFolder(deckId)) },
                     onOpenFavorites = { navController.navigate(Routes.FAVORITES) },
                     onOpenHardWords = { navController.openTab(MainTab.STATS) }
+                )
+            }
+
+            composable(
+                route = Routes.DECK_FOLDER,
+                arguments = listOf(navArgument(Routes.DECK_ID_ARG) { type = NavType.LongType })
+            ) { entry ->
+                val deckId = entry.arguments?.getLong(Routes.DECK_ID_ARG) ?: 0L
+                DeckFolderScreen(
+                    deckId = deckId,
+                    viewModel = deckViewModel,
+                    onBack = { navController.popBackStack() },
+                    onOpenDeck = { id -> navController.navigate(Routes.deck(id)) },
+                    onPlayWithDeck = { id ->
+                        navController.navigate(Routes.setup(GameKind.MATCH, listOf(id)))
+                    }
                 )
             }
 
@@ -271,7 +312,30 @@ fun ChineseGamesRoot(
             }
 
             composable(Routes.SETTINGS) {
-                SettingsScreen(viewModel = deckViewModel)
+                SettingsScreen(
+                    viewModel = deckViewModel,
+                    onOpenShop = { navController.navigate(Routes.SHOP) }
+                )
+            }
+
+            composable(Routes.SHOP) {
+                ShopScreen(
+                    onBack = { navController.popBackStack() },
+                    onPay = { session -> navController.navigate(Routes.payment(session.invoice.invId)) },
+                    onOpenPending = { invId -> navController.navigate(Routes.payment(invId)) }
+                )
+            }
+
+            composable(
+                route = Routes.PAYMENT,
+                arguments = listOf(navArgument(Routes.INVOICE_ID_ARG) { type = NavType.LongType })
+            ) { entry ->
+                val invoiceId = entry.arguments?.getLong(Routes.INVOICE_ID_ARG) ?: 0L
+                PaymentScreen(
+                    invId = invoiceId,
+                    initialUrl = null,
+                    onDone = { navController.popBackStack() }
+                )
             }
 
             composable(Routes.GAMES) {
@@ -487,10 +551,11 @@ fun ChineseGamesRoot(
                         )
                     },
                     onStartQuiz = { quizKind, deckIds, token ->
-                        if (quizKind == GameKind.PINYIN) {
-                            navController.navigate(Routes.pinyinGame(deckIds, token))
-                        } else {
-                            navController.navigate(Routes.quizGame(quizKind, deckIds, token))
+                        when (quizKind) {
+                            GameKind.PINYIN -> navController.navigate(Routes.pinyinGame(deckIds, token))
+                            GameKind.TONES -> navController.navigate(Routes.toneGame(deckIds, token))
+                            GameKind.HANDS_FREE -> navController.navigate(Routes.handsFree(deckIds, token))
+                            else -> navController.navigate(Routes.quizGame(quizKind, deckIds, token))
                         }
                     }
                 )
@@ -574,6 +639,59 @@ fun ChineseGamesRoot(
                     onExit = { navController.popBackStack() },
                     onOpenSettings = {
                         navController.navigate(Routes.setup(GameKind.PINYIN, deckIds))
+                    }
+                )
+            }
+
+            composable(
+                route = Routes.TONE_GAME,
+                arguments = listOf(
+                    navArgument(Routes.DECK_IDS_ARG) { type = NavType.StringType },
+                    navArgument(Routes.CONFIG_ARG) { type = NavType.StringType }
+                )
+            ) { entry ->
+                val deckIds = parseDeckIds(entry.arguments?.getString(Routes.DECK_IDS_ARG))
+                    .ifEmpty { listOf(FAVORITES_ID) }
+                val values = SettingsCodec.decode(
+                    SettingsCodec.fromRoute(entry.arguments?.getString(Routes.CONFIG_ARG))
+                )
+                val preset = QuizPresets.of(GameKind.TONES)
+
+                ToneGameScreen(
+                    deckIds = deckIds,
+                    questions = SettingsCodec.int(values, SettingsCodec.KEY_QUESTIONS, preset.defaultQuestions),
+                    secondsPerQuestion = SettingsCodec.int(
+                        values, SettingsCodec.KEY_SECONDS, preset.defaultSecondsPerQuestion
+                    ),
+                    srsFirst = SettingsCodec.bool(values, SettingsCodec.KEY_SRS, true),
+                    onExit = { navController.popBackStack() },
+                    onOpenSettings = {
+                        navController.navigate(Routes.setup(GameKind.TONES, deckIds))
+                    }
+                )
+            }
+
+            composable(
+                route = Routes.HANDS_FREE,
+                arguments = listOf(
+                    navArgument(Routes.DECK_IDS_ARG) { type = NavType.StringType },
+                    navArgument(Routes.CONFIG_ARG) { type = NavType.StringType }
+                )
+            ) { entry ->
+                val deckIds = parseDeckIds(entry.arguments?.getString(Routes.DECK_IDS_ARG))
+                    .ifEmpty { listOf(FAVORITES_ID) }
+                val values = SettingsCodec.decode(
+                    SettingsCodec.fromRoute(entry.arguments?.getString(Routes.CONFIG_ARG))
+                )
+                val preset = QuizPresets.of(GameKind.HANDS_FREE)
+
+                HandsFreeScreen(
+                    deckIds = deckIds,
+                    intervalSeconds = SettingsCodec.int(values, SettingsCodec.KEY_INTERVAL, preset.defaultInterval),
+                    srsFirst = SettingsCodec.bool(values, SettingsCodec.KEY_SRS, true),
+                    onExit = { navController.popBackStack() },
+                    onOpenSettings = {
+                        navController.navigate(Routes.setup(GameKind.HANDS_FREE, deckIds))
                     }
                 )
             }

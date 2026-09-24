@@ -1,6 +1,9 @@
 package com.chinesegames.app.ui.screens
 
+import android.app.Activity
 import android.content.Context
+import android.content.ContextWrapper
+import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -21,6 +24,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -30,7 +34,11 @@ import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.MusicOff
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.ShoppingBag
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material3.Icon
@@ -58,6 +66,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chinesegames.app.ui.DeckViewModel
 import com.chinesegames.app.ui.components.CgTopBar
+import com.chinesegames.app.ui.components.GhostButton
+import com.chinesegames.app.ui.components.GradientButton
 import com.chinesegames.app.ui.components.GlassCard
 import com.chinesegames.app.ui.components.PixelCatWisdom
 import com.chinesegames.app.ui.components.PixelDivider
@@ -71,7 +81,9 @@ import com.chinesegames.app.ui.decksLabel
 import com.chinesegames.app.ui.theme.CG
 import com.chinesegames.app.ui.theme.GoldAccent
 import com.chinesegames.app.ui.theme.LavenderGlow
+import com.chinesegames.app.ui.theme.LocalAccount
 import com.chinesegames.app.ui.theme.LocalMusic
+import com.chinesegames.app.ui.theme.LocalPurchases
 import com.chinesegames.app.ui.theme.LocalSettings
 import com.chinesegames.app.ui.theme.LocalSounds
 import com.chinesegames.app.ui.theme.LocalSpeaker
@@ -84,8 +96,14 @@ import com.chinesegames.app.ui.theme.TextPrimary
 import com.chinesegames.app.ui.theme.TextSecondary
 import com.chinesegames.app.ui.theme.VividPurple
 import com.chinesegames.app.ui.wordsLabel
+import com.chinesegames.app.auth.AccountState
+import com.chinesegames.app.auth.CloudSyncResult
+import com.chinesegames.app.auth.SignInResult
+import com.chinesegames.app.data.ColorStyle
 import com.chinesegames.app.data.CsvImportSummary
 import com.chinesegames.app.data.DisplayMode
+import com.chinesegames.app.data.Product
+import com.chinesegames.app.data.StylePack
 import com.chinesegames.app.data.ThemeMode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -98,13 +116,18 @@ import kotlinx.coroutines.withContext
 @Composable
 fun SettingsScreen(
     viewModel: DeckViewModel,
-    onBack: (() -> Unit)? = null
+    onBack: (() -> Unit)? = null,
+    onOpenShop: () -> Unit
 ) {
     val sounds = LocalSounds.current
     val music = LocalMusic.current
     val speaker = LocalSpeaker.current
     val settingsStore = LocalSettings.current
+    val purchases = LocalPurchases.current
+    val account = LocalAccount.current
     val settings by settingsStore.state.collectAsState()
+    val owned by purchases.owned.collectAsState()
+    val accountState by account.state.collectAsState()
 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -112,6 +135,23 @@ fun SettingsScreen(
     val totalWords by viewModel.totalWords.collectAsState()
 
     var csvMessage by remember { mutableStateOf<String?>(null) }
+    var cosmeticsMessage by remember { mutableStateOf<String?>(null) }
+    var accountMessage by remember { mutableStateOf<String?>(null) }
+
+    val customMusicLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        try {
+            context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            val title = uri.lastPathSegment?.substringAfterLast('/')?.takeIf { it.isNotBlank() } ?: "Свой трек"
+            settingsStore.setCustomMusic(uri.toString(), title)
+            music.setSource(settings.stylePack, uri.toString())
+            cosmeticsMessage = "Выбран трек: $title"
+        } catch (_: Throwable) {
+            cosmeticsMessage = "Не удалось сохранить доступ к этому файлу"
+        }
+    }
 
     val exportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("text/csv")
@@ -182,6 +222,111 @@ fun SettingsScreen(
                             settingsStore.setTheme(mode)
                             music.setDayTrack(mode == ThemeMode.DAY)
                         }
+                    }
+                }
+
+                VSpace(24.dp)
+                SectionTitle("Оформление")
+                VSpace(10.dp)
+                GlassCard(contentPadding = PaddingValues(16.dp)) {
+                    Text(
+                        text = "Бесплатный фиолетовый стиль доступен всем. Остальные настройки — необязательные украшения; уроки и игры всегда бесплатны.",
+                        style = PixelType.caption,
+                        color = TextSecondary
+                    )
+                    VSpace(14.dp)
+                    Text(text = "Цвет", style = PixelType.chip, color = TextPrimary)
+                    VSpace(8.dp)
+                    Row(
+                        modifier = Modifier.horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(7.dp)
+                    ) {
+                        ColorStyle.entries.take(4).forEach { style ->
+                            CosmeticChip(
+                                text = "${style.emoji} ${style.title}",
+                                selected = settings.colorStyle == style,
+                                locked = !style.isFree && Product.COLOR_THEMES !in owned
+                            ) {
+                                if (style.isFree || Product.COLOR_THEMES in owned) {
+                                    settingsStore.setColorStyle(style)
+                                    sounds.click()
+                                } else {
+                                    cosmeticsMessage = "«Цветные стили» открываются в магазине за 199 ₽"
+                                }
+                            }
+                        }
+                    }
+                    VSpace(7.dp)
+                    Row(
+                        modifier = Modifier.horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(7.dp)
+                    ) {
+                        ColorStyle.entries.drop(4).forEach { style ->
+                            CosmeticChip(
+                                text = "${style.emoji} ${style.title}",
+                                selected = settings.colorStyle == style,
+                                locked = !style.isFree && Product.COLOR_THEMES !in owned
+                            ) {
+                                if (style.isFree || Product.COLOR_THEMES in owned) {
+                                    settingsStore.setColorStyle(style)
+                                    sounds.click()
+                                } else {
+                                    cosmeticsMessage = "«Цветные стили» открываются в магазине за 199 ₽"
+                                }
+                            }
+                        }
+                    }
+                    VSpace(16.dp)
+                    Text(text = "Стилевой набор", style = PixelType.chip, color = TextPrimary)
+                    VSpace(8.dp)
+                    StylePack.entries.forEach { pack ->
+                        val required = when (pack) {
+                            StylePack.CHINA -> Product.STYLE_CHINA
+                            StylePack.ANIME -> Product.STYLE_ANIME
+                            StylePack.CLASSIC -> null
+                        }
+                        CosmeticChip(
+                            text = "${pack.emoji} ${pack.title}",
+                            selected = settings.stylePack == pack,
+                            locked = required != null && required !in owned,
+                            modifier = Modifier.padding(bottom = 7.dp)
+                        ) {
+                            if (required == null || required in owned) {
+                                settingsStore.setStylePack(pack)
+                                music.setSource(pack, settings.customMusicUri)
+                                sounds.click()
+                            } else {
+                                cosmeticsMessage = "«${pack.title}» открывается в магазине за ${required.priceLabel}"
+                            }
+                        }
+                        Text(text = pack.description, style = PixelType.caption, color = TextMuted)
+                    }
+                    if (Product.MASCOT in owned) {
+                        VSpace(10.dp)
+                        ToggleRow(
+                            icon = Icons.Filled.Person,
+                            title = "Чиби-талисман",
+                            subtitle = "Перетаскивайте девочку в любой угол; коснитесь, чтобы услышать реплику",
+                            checked = settings.mascotEnabled,
+                            accent = SkyAccent
+                        ) {
+                            settingsStore.setMascotEnabled(it)
+                            sounds.click()
+                        }
+                    }
+                    cosmeticsMessage?.let { message ->
+                        VSpace(8.dp)
+                        Text(text = message, style = PixelType.caption, color = GoldAccent)
+                    }
+                    VSpace(10.dp)
+                    GradientLikeButton(
+                        text = "Магазин украшений",
+                        icon = Icons.Filled.ShoppingBag,
+                        modifier = Modifier.fillMaxWidth(),
+                        accent = GoldAccent
+                    ) {
+                        sounds.click()
+                        onOpenShop()
                     }
                 }
 
@@ -257,6 +402,40 @@ fun SettingsScreen(
                     )
                 }
 
+                VSpace(10.dp)
+                GlassCard(contentPadding = PaddingValues(16.dp)) {
+                    val customUnlocked = Product.CUSTOM_MUSIC in owned
+                    Text(text = "Своя музыка", style = MaterialTheme.typography.titleSmall, color = TextPrimary, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        text = if (customUnlocked) {
+                            settings.customMusicTitle?.let { "Сейчас играет: $it" } ?: "Выберите любой трек с устройства"
+                        } else "Любой трек с телефона вместо стандартной музыки — 99 ₽",
+                        style = PixelType.caption,
+                        color = TextSecondary
+                    )
+                    VSpace(10.dp)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        GhostButton(
+                            text = "Выбрать трек",
+                            icon = Icons.Filled.MusicNote,
+                            enabled = customUnlocked,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            customMusicLauncher.launch(arrayOf("audio/*"))
+                        }
+                        if (settings.customMusicUri != null && customUnlocked) {
+                            GhostButton(text = "Стандартная") {
+                                settingsStore.setCustomMusic(null, null)
+                                music.setSource(settings.stylePack, null)
+                            }
+                        }
+                    }
+                    if (!customUnlocked) {
+                        VSpace(8.dp)
+                        Text(text = "Открыть можно в Магазине украшений", style = PixelType.caption, color = GoldAccent)
+                    }
+                }
+
                 VSpace(24.dp)
                 SectionTitle("Повторение слов")
                 VSpace(10.dp)
@@ -309,6 +488,42 @@ fun SettingsScreen(
                 }
 
                 VSpace(24.dp)
+                SectionTitle("Аккаунт и синхронизация")
+                VSpace(10.dp)
+                AccountCard(
+                    state = accountState,
+                    message = accountMessage,
+                    onSignIn = {
+                        val activity = context.findActivity()
+                        if (activity == null) {
+                            accountMessage = "Не удалось открыть вход Google"
+                        } else {
+                            scope.launch {
+                                accountMessage = when (val result = account.signIn(activity)) {
+                                    is SignInResult.Success -> "Вошли как ${result.profile.email ?: result.profile.displayName ?: "пользователь"}; прогресс синхронизируется"
+                                    SignInResult.NotConfigured -> "Firebase ещё не настроен: добавьте google-services.json и CG_WEB_CLIENT_ID"
+                                    SignInResult.Cancelled -> "Вход отменён"
+                                    is SignInResult.Error -> result.message
+                                }
+                            }
+                        }
+                    },
+                    onSync = {
+                        scope.launch {
+                            accountMessage = when (val result = account.syncNow()) {
+                                CloudSyncResult.Success -> "Прогресс, настройки и покупки синхронизированы"
+                                CloudSyncResult.NotSignedIn -> "Сначала войдите через Google"
+                                is CloudSyncResult.Error -> "Синхронизация не удалась: ${result.message}"
+                            }
+                        }
+                    },
+                    onSignOut = {
+                        account.signOut()
+                        accountMessage = "Вы вышли из аккаунта"
+                    }
+                )
+
+                VSpace(24.dp)
                 SectionTitle("Словарь в CSV")
                 VSpace(10.dp)
                 GlassCard(contentPadding = PaddingValues(16.dp)) {
@@ -354,7 +569,7 @@ fun SettingsScreen(
                     VSpace(12.dp)
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = "Сейчас в словаре: ${wordsLabel(totalWords)} в ${decksLabel(decks.size)}",
+                            text = "Сейчас в словаре: ${wordsLabel(totalWords)} в ${decksLabel(decks.count { it.parentId == null })}",
                             style = PixelType.caption,
                             color = TextMuted
                         )
@@ -525,4 +740,106 @@ private fun readText(context: Context, uri: Uri): String? = try {
     }
 } catch (_: Throwable) {
     null
+}
+
+/* ---------------------- Покупки и Firebase-аккаунт ---------------------- */
+
+/** Чип с замочком: нажатие всё равно можно обработать и объяснить покупку. */
+@Composable
+private fun CosmeticChip(
+    text: String,
+    selected: Boolean,
+    locked: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    SelectChip(
+        text = if (locked) "🔒 $text" else text,
+        selected = selected,
+        modifier = modifier,
+        onClick = onClick
+    )
+}
+
+@Composable
+private fun AccountCard(
+    state: AccountState,
+    message: String?,
+    onSignIn: () -> Unit,
+    onSync: () -> Unit,
+    onSignOut: () -> Unit
+) {
+    GlassCard(contentPadding = PaddingValues(16.dp)) {
+        when (state) {
+            AccountState.Loading -> {
+                Text("Проверяем аккаунт…", style = PixelType.caption, color = TextSecondary)
+            }
+            AccountState.NotConfigured -> {
+                PixelTag(text = "FIREBASE НЕ НАСТРОЕН", color = RoseAccent)
+                VSpace(8.dp)
+                Text(
+                    text = "Вход подготовлен, но для релизной сборки нужен google-services.json " +
+                        "из Firebase Console и OAuth web client ID в CG_WEB_CLIENT_ID. " +
+                        "Без них приложение и все бесплатные уроки работают как обычно.",
+                    style = PixelType.caption,
+                    color = TextSecondary
+                )
+            }
+            AccountState.SignedOut, is AccountState.Error -> {
+                if (state is AccountState.Error) {
+                    Text(text = state.message, style = PixelType.caption, color = RoseAccent)
+                    VSpace(8.dp)
+                }
+                Text(
+                    text = "Войдите через Google, чтобы сохранить HSK-прогресс, настройки и покупки в облаке.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary
+                )
+                VSpace(12.dp)
+                GradientLikeButton(
+                    text = "Войти через Google",
+                    icon = Icons.Filled.Person,
+                    modifier = Modifier.fillMaxWidth(),
+                    accent = SkyAccent,
+                    onClick = onSignIn
+                )
+            }
+            is AccountState.SignedIn -> {
+                PixelTag(text = "GOOGLE ПОДКЛЮЧЁН", color = MintAccent)
+                VSpace(8.dp)
+                Text(
+                    text = state.profile.email ?: state.profile.displayName ?: "Аккаунт Google",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = TextPrimary,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = "В облаке: прогресс HSK, покупки и настройки. Купленное на другом устройстве не теряется.",
+                    style = PixelType.caption,
+                    color = TextSecondary
+                )
+                VSpace(12.dp)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    GhostButton(
+                        text = "Синхронизировать",
+                        icon = Icons.Filled.Sync,
+                        modifier = Modifier.weight(1f),
+                        onClick = onSync
+                    )
+                    GhostButton(text = "Выйти", onClick = onSignOut)
+                }
+            }
+        }
+        message?.let {
+            VSpace(10.dp)
+            Text(text = it, style = PixelType.caption, color = GoldAccent)
+        }
+    }
+}
+
+/** На Compose LocalContext иногда приходит ContextWrapper — добираемся до Activity. */
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
 }

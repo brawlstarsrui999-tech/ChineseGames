@@ -107,6 +107,10 @@ fun DeckDetailScreen(
         }
     }
 
+    // Папки курса («HSK 3 · Еда и напитки») — только для чтения: слова в них
+    // ровно те же, что в курсе, добавлять и править их нельзя.
+    val readOnly = deck?.isCourse == true
+
     PurpleBackground {
         Column(
             modifier = Modifier
@@ -115,7 +119,11 @@ fun DeckDetailScreen(
         ) {
             CgTopBar(
                 title = deck?.name ?: "Папка",
-                subtitle = wordsLabel(words.size),
+                subtitle = if (readOnly) {
+                    "${wordsLabel(words.size)} · раздел курса HSK ${deck?.courseLevel ?: ""}"
+                } else {
+                    wordsLabel(words.size)
+                },
                 emoji = deck?.emoji,
                 onBack = {
                     sounds.whoosh()
@@ -196,13 +204,19 @@ fun DeckDetailScreen(
             if (words.isEmpty()) {
                 EmptyState(
                     glyph = "词",
-                    title = "В папке пока нет слов",
-                    message = "Добавьте слово: иероглиф, пиньинь и перевод на русский. " +
-                        "Слов можно добавить сколько угодно.",
-                    action = {
-                        GradientButton(text = "Добавить слово", icon = Icons.Filled.Add) {
-                            sounds.click()
-                            showAddWord = true
+                    title = if (readOnly) "Раздел ещё заполняется" else "В папке пока нет слов",
+                    message = if (readOnly) {
+                        "Слова курса появятся здесь через пару секунд."
+                    } else {
+                        "Добавьте слово: иероглиф, пиньинь и перевод на русский. " +
+                            "Слов можно добавить сколько угодно."
+                    },
+                    action = if (readOnly) null else {
+                        {
+                            GradientButton(text = "Добавить слово", icon = Icons.Filled.Add) {
+                                sounds.click()
+                                showAddWord = true
+                            }
                         }
                     }
                 )
@@ -216,6 +230,7 @@ fun DeckDetailScreen(
                         WordRow(
                             word = word,
                             favorite = favoriteIds.contains(word.id),
+                            editable = !readOnly,
                             onToggleFavorite = {
                                 sounds.click()
                                 viewModel.toggleFavorite(word.id)
@@ -248,7 +263,7 @@ fun DeckDetailScreen(
             }
         }
 
-        Box(
+        if (!readOnly) Box(
             modifier = Modifier
                 .fillMaxSize()
                 .navigationBarsPadding(),
@@ -337,7 +352,8 @@ private fun WordRow(
     onSpeak: (Word) -> Unit,
     onToggleFavorite: () -> Unit,
     onEdit: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    editable: Boolean = true
 ) {
     var menuOpen by remember { mutableStateOf(false) }
 
@@ -400,7 +416,7 @@ private fun WordRow(
                 )
             }
 
-            Box {
+            if (editable) Box {
                 Icon(
                     imageVector = Icons.Filled.MoreVert,
                     contentDescription = "Меню слова",

@@ -72,6 +72,10 @@ interface HskDao {
     @Query("SELECT * FROM hsk_group_progress WHERE groupKey = :key")
     suspend fun getGroup(key: String): HskGroupProgress?
 
+    /** Снимок для облачной синхронизации (не меняет схему Room). */
+    @Query("SELECT * FROM hsk_group_progress")
+    suspend fun allGroups(): List<HskGroupProgress>
+
     @Upsert
     suspend fun upsertGroup(progress: HskGroupProgress)
 
@@ -81,6 +85,9 @@ interface HskDao {
     @Query("SELECT * FROM hsk_exam WHERE level = :level")
     suspend fun getExam(level: Int): HskExam?
 
+    @Query("SELECT * FROM hsk_exam")
+    suspend fun allExams(): List<HskExam>
+
     @Upsert
     suspend fun upsertExam(exam: HskExam)
 
@@ -89,6 +96,9 @@ interface HskDao {
 
     @Query("SELECT * FROM hsk_sentence_progress WHERE topicKey = :key")
     suspend fun getSentenceTopic(key: String): HskSentenceProgress?
+
+    @Query("SELECT * FROM hsk_sentence_progress")
+    suspend fun allSentenceTopics(): List<HskSentenceProgress>
 
     @Upsert
     suspend fun upsertSentenceTopic(progress: HskSentenceProgress)

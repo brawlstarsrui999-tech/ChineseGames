@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.MusicOff
 import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material.icons.filled.SportsEsports
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
@@ -43,6 +44,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.chinesegames.app.ads.AdBanner
 import com.chinesegames.app.ui.components.BreathingIcon
 import com.chinesegames.app.ui.components.CircleIconButton
 import com.chinesegames.app.ui.components.PulsingGlow
@@ -71,7 +73,8 @@ fun MainMenuScreen(
     totalWords: Int,
     learnedWords: Int,
     gamesPlayed: Int,
-    bestScore: Int
+    bestScore: Int,
+    onOpenShop: () -> Unit
 ) {
     val sounds = LocalSounds.current
     val music = LocalMusic.current
@@ -99,6 +102,15 @@ fun MainMenuScreen(
                     color = TextMuted,
                     modifier = Modifier.weight(1f)
                 )
+                CircleIconButton(
+                    icon = Icons.Filled.ShoppingBag,
+                    contentDescription = "Магазин украшений",
+                    tint = GoldAccent
+                ) {
+                    sounds.click()
+                    onOpenShop()
+                }
+                Spacer(Modifier.width(10.dp))
                 CircleIconButton(
                     icon = if (muted) Icons.AutoMirrored.Filled.VolumeOff else Icons.AutoMirrored.Filled.VolumeUp,
                     contentDescription = if (muted) "Включить звук" else "Выключить звук",
@@ -204,7 +216,11 @@ fun MainMenuScreen(
                 )
             }
 
-            Spacer(Modifier.height(30.dp))
+            Spacer(Modifier.height(16.dp))
+            // В уроках и играх рекламы нет; на главной — один ненавязчивый баннер.
+            // После покупки «Без рекламы» AdBanner сам перестаёт рисоваться.
+            AdBanner()
+            Spacer(Modifier.height(12.dp))
 
             Text(
                 text = "Разделы — в панели внизу экрана",

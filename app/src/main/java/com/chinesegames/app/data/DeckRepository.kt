@@ -17,13 +17,39 @@ class DeckRepository(
 
     /* ----------------------------- Папки ----------------------------- */
 
+    /** Все папки: пользовательские, «Выученное», уровни курса и их разделы. */
     val decks: Flow<List<Deck>> = deckDao.observeDecks()
 
-    val wordCounts: Flow<Map<Long, Int>> =
-        deckDao.observeWordCounts().map { list -> list.associate { it.deckId to it.count } }
+    /**
+     * Слов в папке. У папок уровней курса («HSK 3») слова лежат в подпапках,
+     * поэтому для них считаем сумму по разделам.
+     */
+    val wordCounts: Flow<Map<Long, Int>> = combine(
+        deckDao.observeWordCounts().map { list -> list.associate { it.deckId to it.count } },
+        deckDao.observeDecks()
+    ) { counts, decks -> withParentTotals(counts, decks) }
 
-    val learnedCounts: Flow<Map<Long, Int>> =
-        deckDao.observeLearnedCounts().map { list -> list.associate { it.deckId to it.count } }
+    val learnedCounts: Flow<Map<Long, Int>> = combine(
+        deckDao.observeLearnedCounts().map { list -> list.associate { it.deckId to it.count } },
+        deckDao.observeDecks()
+    ) { counts, decks -> withParentTotals(counts, decks) }
+
+    /** Добавляем родительским папкам сумму по их подпапкам. */
+    private fun withParentTotals(counts: Map<Long, Int>, decks: List<Deck>): Map<Long, Int> {
+        val result = HashMap(counts)
+        decks.forEach { deck ->
+            val parent = deck.parentId ?: return@forEach
+            val own = counts[deck.id] ?: 0
+            if (own > 0) result[parent] = (result[parent] ?: 0) + own
+        }
+        return result
+    }
+
+    /** Подпапки (разделы) папки уровня курса. */
+    suspend fun children(parentId: Long): List<Deck> = deckDao.children(parentId)
+
+    /** Папка уровня курса в словаре («HSK 3»), если уже создана. */
+    suspend fun courseLevelDeck(level: Int): Deck? = deckDao.getByCourseKey(Deck.levelKey(level))
 
     val deckStats: Flow<List<DeckStat>> = statsDao.observeDeckStats()
 
@@ -34,10 +60,14 @@ class DeckRepository(
     suspend fun createDeck(name: String, emoji: String): Long =
         deckDao.insert(Deck(name = name.trim(), emoji = emoji))
 
-    /** Системную папку переименовывать нельзя — иначе курс потеряет её. */
+    /**
+     * Системные папки («Выученное», папки курса) переименовывать нельзя —
+     * иначе курс и словарь потеряют их. Для них сохраняем прежние имя и эмодзи.
+     */
     suspend fun updateDeck(deck: Deck) {
         if (deck.isSystem) {
-            deckDao.update(deck.copy(name = Deck.LEARNED_DECK, emoji = Deck.LEARNED_EMOJI))
+            val current = deckDao.getDeck(deck.id) ?: return
+            deckDao.update(deck.copy(name = current.name, emoji = current.emoji))
         } else {
             deckDao.update(deck)
         }
@@ -45,10 +75,10 @@ class DeckRepository(
 
     /**
      * Удаляем папку вместе со статистикой и избранным по её словам.
-     * Системную папку «Выученное» удалить нельзя — в ней слова из курса.
+     * Системные папки («Выученное», «HSK 1» … «HSK 7») удалить нельзя.
      */
     suspend fun deleteDeck(deck: Deck) {
-        if (deck.isSystem) return
+        if (deck.isSystem || deck.isCourse) return
         val words = wordDao.getByDeck(deck.id)
         if (words.isNotEmpty()) {
             val ids = words.map { it.id }
@@ -123,7 +153,7 @@ class DeckRepository(
      */
     suspend fun wordsFor(selection: List<Long>): List<Word> {
         val result = LinkedHashMap<Long, Word>()
-        val plainDecks = selection.filter { it > 0 }
+        val plainDecks = expandFolders(selection.filter { it > 0 })
         wordsOfDecks(plainDecks).forEach { result[it.id] = it }
         if (selection.contains(FAVORITES_ID)) {
             favoriteWords().forEach { result[it.id] = it }
@@ -138,7 +168,7 @@ class DeckRepository(
 
     suspend fun countFor(selection: List<Long>): Int {
         var total = 0
-        selection.filter { it > 0 }.let { decks ->
+        expandFolders(selection.filter { it > 0 }).let { decks ->
             if (decks.isNotEmpty()) total += wordDao.countInDecks(decks)
         }
         if (selection.contains(FAVORITES_ID)) total += favoriteDao.words().size
@@ -146,6 +176,17 @@ class DeckRepository(
             total += statsDao.hardWordIds(HARD_WORDS_LIMIT).size
         }
         return total
+    }
+
+    /**
+     * Папка уровня курса («HSK 3») сама слов не хранит — они в подпапках.
+     * Выбор такой папки означает «все её разделы».
+     */
+    private suspend fun expandFolders(deckIds: List<Long>): List<Long> {
+        if (deckIds.isEmpty()) return deckIds
+        val children = deckDao.childrenOf(deckIds).map { it.id }
+        if (children.isEmpty()) return deckIds
+        return (deckIds + children).distinct()
     }
 
     /**
@@ -203,9 +244,15 @@ class DeckRepository(
     fun recentGameResults(limit: Int): Flow<List<GameResult>> =
         statsDao.observeRecentGameResults(limit)
 
-    suspend fun saveMatchResult(result: MatchResult) = statsDao.insertResult(result)
+    suspend fun saveMatchResult(result: MatchResult) {
+        statsDao.insertResult(result)
+        GameEvents.gameFinished(GameOutcome(result.accuracy, result.stars, result.score))
+    }
 
-    suspend fun saveGameResult(result: GameResult) = statsDao.insertGameResult(result)
+    suspend fun saveGameResult(result: GameResult) {
+        statsDao.insertGameResult(result)
+        GameEvents.gameFinished(GameOutcome(result.accuracy, result.stars, result.score))
+    }
 
     /**
      * Обновляем «память» по каждому слову после партии.
@@ -363,10 +410,13 @@ class DeckRepository(
 
     /* ---------------------------- CSV-обмен ---------------------------- */
 
-    /** Выгружаем весь словарь в CSV-текст. */
+    /**
+     * Выгружаем словарь пользователя в CSV-текст. Папки курса («HSK 1» … «HSK 7»)
+     * не выгружаем: они собираются из материала приложения автоматически.
+     */
     suspend fun exportCsv(): String {
-        val allDecks = deckDao.allDecks().associateBy { it.id }
-        val rows = wordDao.allWords().map { word ->
+        val allDecks = deckDao.allDecks().filterNot { it.isCourse }.associateBy { it.id }
+        val rows = wordDao.allWords().filter { allDecks.containsKey(it.deckId) }.map { word ->
             val deck = allDecks[word.deckId]
             CsvRow(
                 deck = deck?.name ?: CsvCodec.DEFAULT_DECK,
@@ -391,7 +441,9 @@ class DeckRepository(
         val deckCache = HashMap<String, Long>()
         val existing = HashSet<String>()
 
-        deckDao.allDecks().forEach { deck ->
+        // папки курса в импорте не участвуют: слова в них менять нельзя,
+        // а одноимённая папка из файла («HSK 1») станет обычной папкой пользователя
+        deckDao.allDecks().filterNot { it.isCourse }.forEach { deck ->
             deckCache[deck.name.lowercase()] = deck.id
             wordDao.getByDeck(deck.id).forEach { existing.add(key(deck.id, it.hanzi, it.translation)) }
         }

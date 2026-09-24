@@ -31,7 +31,15 @@ data class QuizPreset(
     /** Настройки для карточной игры «Найди пару» (партий с сеткой). */
     val allowPairs: Boolean = false,
     val defaultPairs: Int = 10,
-    val pairChoices: List<Int> = listOf(6, 8, 10, 12, 16, 20)
+    val pairChoices: List<Int> = listOf(6, 8, 10, 12, 16, 20),
+    /** Показывать ли выбор количества слов (у бесконечных режимов его нет). */
+    val allowQuestions: Boolean = true,
+    /** Интервал автоматической смены карточки (режим «Без рук»). */
+    val allowInterval: Boolean = false,
+    val defaultInterval: Int = 6,
+    val intervalChoices: List<Int> = listOf(4, 6, 8, 10, 15),
+    /** Сколько слов минимум нужно в выбранных папках. */
+    val minWords: Int = 3
 ) {
     val kindLabel: String get() = kind.title
 }
@@ -46,6 +54,7 @@ object SettingsCodec {
     const val KEY_MEMORIZE = "mem"
     const val KEY_MEMORIZE_SECONDS = "memS"
     const val KEY_SRS = "srs"
+    const val KEY_INTERVAL = "int"
 
     fun encode(values: Map<String, Any>): String =
         values.entries.joinToString(";") { (key, value) -> "$key=$value" }
@@ -188,6 +197,30 @@ object QuizPresets {
             allowSecondsPerQuestion = true,
             defaultSecondsPerQuestion = 0,
             secondChoices = listOf(0, 10, 15, 25)
+        )
+
+        GameKind.TONES -> QuizPreset(
+            kind = kind,
+            prompt = PromptKind.AUDIO,
+            answer = AnswerKind.HANZI,
+            defaultQuestions = 12,
+            questionChoices = listOf(8, 12, 16, 24),
+            allowSecondsPerQuestion = true,
+            defaultSecondsPerQuestion = 0,
+            secondChoices = listOf(0, 8, 12, 20)
+        )
+
+        GameKind.HANDS_FREE -> QuizPreset(
+            kind = kind,
+            prompt = PromptKind.AUDIO,
+            answer = AnswerKind.TRANSLATION,
+            defaultQuestions = 0,
+            questionChoices = emptyList(),
+            allowQuestions = false,
+            allowInterval = true,
+            defaultInterval = 6,
+            intervalChoices = listOf(4, 6, 8, 10, 15),
+            minWords = 1
         )
     }
 

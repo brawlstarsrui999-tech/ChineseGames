@@ -9,10 +9,14 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.Modifier
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.compose.rememberNavController
+import com.chinesegames.app.ui.mascot.MascotOverlay
 import com.chinesegames.app.ui.navigation.ChineseGamesRoot
 import com.chinesegames.app.ui.theme.ChineseGamesTheme
 import com.chinesegames.app.ui.theme.CgPaletteState
@@ -21,6 +25,8 @@ import com.chinesegames.app.ui.theme.LocalSettings
 import com.chinesegames.app.ui.theme.LocalSounds
 import com.chinesegames.app.ui.theme.LocalSpeaker
 import com.chinesegames.app.ui.theme.LocalThemeMode
+import com.chinesegames.app.ui.theme.LocalPurchases
+import com.chinesegames.app.ui.theme.LocalAccount
 
 class MainActivity : ComponentActivity() {
 
@@ -37,17 +43,28 @@ class MainActivity : ComponentActivity() {
             // Тема применяется целиком: key() пересобирает интерфейс,
             // поэтому цвета читаются как обычные значения (см. Color.kt).
             CgPaletteState.night = settings.theme.isNight
+            CgPaletteState.style = settings.colorStyle
+            CgPaletteState.pack = settings.stylePack
 
-            key(settings.theme) {
+            key(settings.theme, CgPaletteState.key) {
                 ChineseGamesTheme {
                     CompositionLocalProvider(
                         LocalSounds provides app.sounds,
                         LocalSpeaker provides app.speaker,
                         LocalMusic provides app.music,
                         LocalSettings provides app.settings,
-                        LocalThemeMode provides settings.theme
+                        LocalThemeMode provides settings.theme,
+                        LocalPurchases provides app.purchases,
+                        LocalAccount provides app.account
                     ) {
-                        ChineseGamesRoot(navController = navController)
+                        Box(Modifier.fillMaxSize()) {
+                            ChineseGamesRoot(navController = navController)
+                            MascotOverlay(
+                                settings = app.settings,
+                                purchases = app.purchases,
+                                voice = app.mascotVoice
+                            )
+                        }
                     }
                 }
             }

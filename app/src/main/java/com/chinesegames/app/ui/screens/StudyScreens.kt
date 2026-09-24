@@ -103,7 +103,7 @@ fun StudyHomeScreen(
         ) {
             CgTopBar(
                 title = "Поэтапное изучение",
-                subtitle = "HSK 1 → HSK 6 · группы по 5 слов",
+                subtitle = "HSK 1 → HSK 7 · группы по 5 слов",
                 icon = Icons.Filled.School,
                 iconTint = StudyAccent
             )

@@ -10,6 +10,8 @@ import androidx.compose.ui.graphics.Color
 import com.chinesegames.app.audio.BackgroundMusic
 import com.chinesegames.app.audio.ChineseSpeaker
 import com.chinesegames.app.audio.GameSounds
+import com.chinesegames.app.auth.AccountManager
+import com.chinesegames.app.billing.PurchaseManager
 import com.chinesegames.app.data.SettingsStore
 import com.chinesegames.app.data.ThemeMode
 
@@ -72,10 +74,15 @@ val LocalMusic = staticCompositionLocalOf<BackgroundMusic> { error("BackgroundMu
 val LocalSettings = staticCompositionLocalOf<SettingsStore> { error("SettingsStore не подключены") }
 val LocalThemeMode = staticCompositionLocalOf { ThemeMode.NIGHT }
 
+/** Покупки (магазин украшений) и аккаунт Google — тоже доступны отовсюду. */
+val LocalPurchases = staticCompositionLocalOf<PurchaseManager> { error("PurchaseManager не подключён") }
+val LocalAccount = staticCompositionLocalOf<AccountManager> { error("AccountManager не подключён") }
+
 @Composable
 fun ChineseGamesTheme(content: @Composable () -> Unit) {
     val night = CgPaletteState.night
-    val scheme = remember(night) { if (night) nightScheme() else dayScheme() }
+    val paletteKey = CgPaletteState.key
+    val scheme = remember(paletteKey) { if (night) nightScheme() else dayScheme() }
     MaterialTheme(
         colorScheme = scheme,
         typography = AppTypography,

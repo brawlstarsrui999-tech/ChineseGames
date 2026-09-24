@@ -152,7 +152,9 @@ def main() -> int:
         ):
             name = match.group(1).strip("`").split(".")[-1]
             declared.add(f"{prefix}.{name}")
-    declared.add("com.chinesegames.app.R")  # генерируется Android Gradle Plugin
+    # Эти два класса генерирует Android Gradle Plugin.
+    declared.add("com.chinesegames.app.R")
+    declared.add("com.chinesegames.app.BuildConfig")
 
     for path in files:
         src = clean[path]

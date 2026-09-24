@@ -4,8 +4,10 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.media.AudioAttributes
 import android.media.MediaPlayer
+import android.net.Uri
 import android.util.Log
 import com.chinesegames.app.R
+import com.chinesegames.app.data.StylePack
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -35,6 +37,15 @@ class BackgroundMusic(context: Context) {
     /** Какой трек сейчас нужен: ночная тема или дневная. */
     private var dayTrack = false
     private var prepared = false
+
+    /** Стилевой набор: у «дракона» и «аниме» свои треки. */
+    private var pack: StylePack = StylePack.CLASSIC
+
+    /** Своя музыка пользователя (content-URI) — если куплена и выбрана. */
+    private var customUri: Uri? = null
+
+    /** Если свой трек не открылся — играем встроенный и сообщаем об этом. */
+    var onCustomTrackFailed: (() -> Unit)? = null
 
     /** Приложение на переднем плане? */
     private var foreground = false
@@ -87,6 +98,27 @@ class BackgroundMusic(context: Context) {
         }
     }
 
+    /**
+     * Смена источника: стилевой набор и/или свой трек пользователя.
+     * Перезапускает музыку только если источник действительно изменился.
+     */
+    fun setSource(pack: StylePack, customUri: String?) {
+        val uri = customUri?.takeIf { it.isNotBlank() }?.let { raw ->
+            try {
+                Uri.parse(raw)
+            } catch (_: Throwable) {
+                null
+            }
+        }
+        if (this.pack == pack && this.customUri == uri) return
+        this.pack = pack
+        this.customUri = uri
+        if (player != null) {
+            release()
+            if (foreground) start()
+        }
+    }
+
     /** Приглушение на время озвучки иероглифа (ducking). */
     fun setDucked(value: Boolean) {
         if (ducked == value) return
@@ -121,15 +153,17 @@ class BackgroundMusic(context: Context) {
     }
 
     private fun createPlayer(): MediaPlayer? {
-        val res = if (dayTrack) R.raw.bgm_day else R.raw.bgm_night
+        customUri?.let { uri ->
+            createFromUri(uri)?.let { return it }
+            onCustomTrackFailed?.invoke()
+        }
+        val res = when (pack) {
+            StylePack.CHINA -> R.raw.bgm_china
+            StylePack.ANIME -> R.raw.bgm_anime
+            StylePack.CLASSIC -> if (dayTrack) R.raw.bgm_day else R.raw.bgm_night
+        }
         try {
-            val media = MediaPlayer()
-            media.setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_MEDIA)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                    .build()
-            )
+            val media = newPlayer()
             val descriptor = appContext.resources.openRawResourceFd(res)
                 ?: error("ресурс недоступен")
             descriptor.use {
@@ -152,6 +186,29 @@ class BackgroundMusic(context: Context) {
                 null
             }
         }
+    }
+
+    /** Свой трек пользователя: content-URI из SAF (разрешение сохранено при выборе). */
+    private fun createFromUri(uri: Uri): MediaPlayer? = try {
+        val media = newPlayer()
+        media.setDataSource(appContext, uri)
+        media.isLooping = true
+        media.setVolume(0f, 0f)
+        media.prepare()
+        prepared = true
+        media
+    } catch (t: Throwable) {
+        Log.w(TAG, "Свой трек недоступен: $uri", t)
+        null
+    }
+
+    private fun newPlayer(): MediaPlayer = MediaPlayer().apply {
+        setAudioAttributes(
+            AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_MEDIA)
+                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                .build()
+        )
     }
 
     private fun targetVolume(): Float {

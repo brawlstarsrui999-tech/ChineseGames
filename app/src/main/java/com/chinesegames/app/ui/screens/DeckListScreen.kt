@@ -45,9 +45,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chinesegames.app.data.Deck
+import com.chinesegames.app.data.HskCourse
 import com.chinesegames.app.ui.DeckViewModel
 import com.chinesegames.app.ui.components.CgTopBar
 import com.chinesegames.app.ui.components.DeckEditorDialog
@@ -64,6 +66,7 @@ import com.chinesegames.app.ui.theme.LocalSounds
 import com.chinesegames.app.ui.theme.MintAccent
 import com.chinesegames.app.ui.theme.CG
 import com.chinesegames.app.ui.theme.RoseAccent
+import com.chinesegames.app.ui.theme.SkyAccent
 import com.chinesegames.app.ui.theme.TextMuted
 import com.chinesegames.app.ui.theme.TextPrimary
 import com.chinesegames.app.ui.theme.TextSecondary
@@ -81,6 +84,7 @@ fun DeckListScreen(
     hardWordsCount: Int,
     onBack: (() -> Unit)? = null,
     onOpenDeck: (Long) -> Unit,
+    onOpenFolder: (Long) -> Unit,
     onOpenFavorites: () -> Unit,
     onOpenHardWords: () -> Unit
 ) {
@@ -94,9 +98,18 @@ fun DeckListScreen(
     var deckToEdit by remember { mutableStateOf<Deck?>(null) }
     var deckToDelete by remember { mutableStateOf<Deck?>(null) }
 
-    val filtered = remember(decks, query) {
-        if (query.isBlank()) decks
-        else decks.filter { it.name.contains(query.trim(), ignoreCase = true) }
+    // Папки курса «HSK 1» … «HSK 7» показываем отдельным блоком; их разделы
+    // (подпапки) открываются внутри папки уровня. Остальное — папки пользователя.
+    val courseLevels = remember(decks) { decks.filter { it.isCourseLevel } }
+    val ownDecks = remember(decks) { decks.filter { !it.isCourse } }
+
+    val filtered = remember(ownDecks, query) {
+        if (query.isBlank()) ownDecks
+        else ownDecks.filter { it.name.contains(query.trim(), ignoreCase = true) }
+    }
+    val filteredCourse = remember(courseLevels, query) {
+        if (query.isBlank()) courseLevels
+        else courseLevels.filter { it.name.contains(query.trim(), ignoreCase = true) }
     }
 
     PurpleBackground {
@@ -107,7 +120,7 @@ fun DeckListScreen(
         ) {
             CgTopBar(
                 title = "Словарь",
-                subtitle = if (decks.isEmpty()) "Пока пусто" else decksLabel(decks.size),
+                subtitle = if (ownDecks.isEmpty()) "Курс HSK и ваши папки" else decksLabel(ownDecks.size),
                 onBack = onBack?.let { handler ->
                     {
                         sounds.whoosh()
@@ -116,7 +129,7 @@ fun DeckListScreen(
                 }
             )
 
-            if (decks.size > 3) {
+            if (ownDecks.size > 3) {
                 SearchField(
                     value = query,
                     onValueChange = { query = it },
@@ -131,7 +144,7 @@ fun DeckListScreen(
                     EmptyState(
                         glyph = "字",
                         title = "Папок пока нет",
-                        message = "Папка — это тема слов: «Еда», «Путешествия», «HSK 3». " +
+                        message = "Папка — это тема слов: «Еда», «Путешествия», «Мой урок». " +
                             "Внутри папки можно хранить сколько угодно слов.",
                         action = {
                             GradientButton(
@@ -183,6 +196,38 @@ fun DeckListScreen(
                         }
                     }
 
+                    // Папки курса: слова уровней HSK 1–7 и их разделов — играйте с любыми
+                    if (filteredCourse.isNotEmpty()) {
+                        item(key = "course_header") {
+                            SectionHeader(
+                                title = "Курс HSK",
+                                subtitle = "Те же слова, что в курсе: уровень целиком или отдельный раздел"
+                            )
+                        }
+                        items(filteredCourse, key = { "course_${it.id}" }) { deck ->
+                            CourseFolderRow(
+                                deck = deck,
+                                wordCount = wordCounts[deck.id] ?: 0,
+                                learnedCount = learnedCounts[deck.id] ?: 0,
+                                onClick = {
+                                    sounds.click()
+                                    onOpenFolder(deck.id)
+                                }
+                            )
+                        }
+                    }
+
+                    item(key = "own_header") {
+                        SectionHeader(
+                            title = "Мои папки",
+                            subtitle = if (ownDecks.isEmpty()) {
+                                "Создайте папку и добавьте свои слова — из учебника или урока"
+                            } else {
+                                decksLabel(ownDecks.size)
+                            }
+                        )
+                    }
+
                     items(filtered, key = { it.id }) { deck ->
                         DeckRow(
                             deck = deck,
@@ -202,7 +247,7 @@ fun DeckListScreen(
                             }
                         )
                     }
-                    if (filtered.isEmpty()) {
+                    if (filtered.isEmpty() && query.isNotBlank()) {
                         item {
                             Text(
                                 text = "Ничего не найдено",
@@ -378,6 +423,100 @@ private fun DeckRow(
                     }
                 }
             }
+        }
+    }
+}
+
+/** Заголовок блока списка («Курс HSK», «Мои папки»). */
+@Composable
+private fun SectionHeader(title: String, subtitle: String) {
+    Column(modifier = Modifier.padding(start = 4.dp, top = 6.dp, end = 4.dp)) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium,
+            color = TextPrimary,
+            fontWeight = FontWeight.Bold
+        )
+        Text(
+            text = subtitle,
+            style = MaterialTheme.typography.bodySmall,
+            color = TextSecondary
+        )
+    }
+}
+
+/** Папка уровня курса: «HSK 3 · 298 слов · 18 разделов». */
+@Composable
+private fun CourseFolderRow(
+    deck: Deck,
+    wordCount: Int,
+    learnedCount: Int,
+    onClick: () -> Unit
+) {
+    val level = deck.courseLevel ?: 0
+    GlassCard(onClick = onClick, contentPadding = PaddingValues(16.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(54.dp)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(
+                        Brush.linearGradient(
+                            listOf(SkyAccent.copy(alpha = 0.35f), Color.White.copy(alpha = 0.08f))
+                        )
+                    )
+                    .border(1.dp, SkyAccent.copy(alpha = 0.35f), RoundedCornerShape(18.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(text = deck.emoji, fontSize = 26.sp)
+            }
+
+            Spacer(Modifier.width(14.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = deck.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = TextPrimary,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(Modifier.height(3.dp))
+                Text(
+                    text = if (level > 0) HskCourse.levelDescription(level) else "",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(Modifier.height(3.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = wordsLabel(wordCount),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextSecondary
+                    )
+                    if (learnedCount > 0) {
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            text = "· знаю $learnedCount",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MintAccent
+                        )
+                    }
+                }
+                Spacer(Modifier.height(9.dp))
+                GradientProgress(
+                    progress = if (wordCount == 0) 0f else learnedCount.toFloat() / wordCount,
+                    height = 6.dp
+                )
+            }
+
+            Spacer(Modifier.width(6.dp))
+            Icon(
+                imageVector = Icons.Filled.ChevronRight,
+                contentDescription = null,
+                tint = SkyAccent
+            )
         }
     }
 }

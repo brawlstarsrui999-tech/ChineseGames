@@ -19,6 +19,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import com.chinesegames.app.data.StylePack
 import com.chinesegames.app.ui.theme.CG
 import com.chinesegames.app.ui.theme.CgPaletteState
 import com.chinesegames.app.ui.theme.FuchsiaGlow
@@ -96,15 +97,32 @@ fun PurpleBackground(
             }
         }
 
+        val pack = CgPaletteState.pack
+
         if (clouds) {
             PixelCloudLayer(modifier = Modifier.fillMaxSize())
+        }
+
+        // Украшения стилевого набора: дракон с фонариками или аниме-персонажи.
+        when (pack) {
+            StylePack.CHINA -> PixelChinaLayer(modifier = Modifier.fillMaxSize())
+            StylePack.ANIME -> PixelAnimeLayer(modifier = Modifier.fillMaxSize())
+            StylePack.CLASSIC -> Unit
         }
 
         if (petals) {
             PixelPetalLayer(
                 modifier = Modifier.fillMaxSize(),
-                count = if (CgPaletteState.night) 12 else 14,
-                alpha = if (CgPaletteState.night) 0.85f else 1f
+                count = when (pack) {
+                    StylePack.CLASSIC -> if (CgPaletteState.night) 12 else 14
+                    else -> 16
+                },
+                alpha = if (CgPaletteState.night) 0.85f else 1f,
+                sprites = when (pack) {
+                    StylePack.CHINA -> ChinaFallingSprites
+                    StylePack.ANIME -> AnimeFallingSprites
+                    StylePack.CLASSIC -> DecorSprites
+                }
             )
         }
 

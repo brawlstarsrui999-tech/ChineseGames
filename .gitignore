@@ -10,3 +10,6 @@
 local.properties
 app/build
 __pycache__/
+
+# Firebase configuration contains project credentials (template is committed instead).
+/app/google-services.json

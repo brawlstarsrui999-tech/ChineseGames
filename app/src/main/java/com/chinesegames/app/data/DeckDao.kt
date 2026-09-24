@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface DeckDao {
 
-    @Query("SELECT * FROM decks ORDER BY createdAt ASC")
+    @Query("SELECT * FROM decks ORDER BY sortOrder ASC, createdAt ASC")
     fun observeDecks(): Flow<List<Deck>>
 
     @Query("SELECT * FROM decks WHERE id = :id")
@@ -19,11 +19,23 @@ interface DeckDao {
     @Query("SELECT * FROM decks WHERE id = :id")
     suspend fun getDeck(id: Long): Deck?
 
-    @Query("SELECT * FROM decks ORDER BY createdAt ASC")
+    @Query("SELECT * FROM decks ORDER BY sortOrder ASC, createdAt ASC")
     suspend fun allDecks(): List<Deck>
 
     @Query("SELECT * FROM decks WHERE name = :name LIMIT 1")
     suspend fun getByName(name: String): Deck?
+
+    @Query("SELECT * FROM decks WHERE courseKey = :key LIMIT 1")
+    suspend fun getByCourseKey(key: String): Deck?
+
+    @Query("SELECT * FROM decks WHERE courseKey IS NOT NULL")
+    suspend fun courseDecks(): List<Deck>
+
+    @Query("SELECT * FROM decks WHERE parentId = :parentId ORDER BY sortOrder ASC, createdAt ASC")
+    suspend fun children(parentId: Long): List<Deck>
+
+    @Query("SELECT * FROM decks WHERE parentId IN (:parentIds)")
+    suspend fun childrenOf(parentIds: List<Long>): List<Deck>
 
     @Insert
     suspend fun insert(deck: Deck): Long
