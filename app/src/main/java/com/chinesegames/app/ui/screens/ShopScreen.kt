@@ -3,6 +3,8 @@ package com.chinesegames.app.ui.screens
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -28,18 +30,27 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.chinesegames.app.R
 import com.chinesegames.app.billing.PaymentSession
 import com.chinesegames.app.billing.PurchaseManager
 import com.chinesegames.app.data.Product
@@ -49,22 +60,16 @@ import com.chinesegames.app.ui.components.GlassCard
 import com.chinesegames.app.ui.components.GradientButton
 import com.chinesegames.app.ui.components.PixelCatWisdom
 import com.chinesegames.app.ui.components.PixelDivider
-import com.chinesegames.app.ui.components.PixelSpriteView
 import com.chinesegames.app.ui.components.PixelTag
 import com.chinesegames.app.ui.components.PurpleBackground
 import com.chinesegames.app.ui.components.SectionTitle
 import com.chinesegames.app.ui.components.VSpace
-import com.chinesegames.app.ui.components.DragonSprite
-import com.chinesegames.app.ui.components.MascotSprite
-import com.chinesegames.app.ui.components.SukunaSprite
-import com.chinesegames.app.ui.components.WaguriSprite
 import com.chinesegames.app.ui.shop.ShopViewModel
 import com.chinesegames.app.ui.theme.CG
 import com.chinesegames.app.ui.theme.GoldAccent
 import com.chinesegames.app.ui.theme.LocalSounds
 import com.chinesegames.app.ui.theme.MintAccent
 import com.chinesegames.app.ui.theme.PixelType
-import com.chinesegames.app.ui.theme.RoseAccent
 import com.chinesegames.app.ui.theme.SkyAccent
 import com.chinesegames.app.ui.theme.TextMuted
 import com.chinesegames.app.ui.theme.TextPrimary
@@ -74,7 +79,7 @@ import kotlinx.coroutines.delay
 /** Порядок товаров на витрине. */
 private val SHOWCASE = listOf(
     Product.STYLE_CHINA,
-    Product.STYLE_ANIME,
+    Product.STYLE_CLOVER,
     Product.COLOR_THEMES,
     Product.MASCOT,
     Product.CUSTOM_MUSIC,
@@ -94,6 +99,7 @@ fun ShopScreen(
 ) {
     val sounds = LocalSounds.current
     val state by viewModel.state.collectAsState()
+    var promoCode by remember { mutableStateOf("") }
 
     LaunchedEffect(state.message) {
         if (state.message != null) {
@@ -139,21 +145,39 @@ fun ShopScreen(
                         style = MaterialTheme.typography.bodySmall,
                         color = TextSecondary
                     )
-                    if (state.testMode) {
-                        VSpace(8.dp)
-                        Text(
-                            text = "Тестовый режим Robokassa: платежи не списывают деньги.",
-                            style = PixelType.caption,
-                            color = SkyAccent
-                        )
-                    }
-                    if (!state.available) {
-                        VSpace(8.dp)
-                        Text(
-                            text = "Магазин ещё не подключён: добавьте ключи Robokassa в local.properties (см. docs/robokassa.md).",
-                            style = PixelType.caption,
-                            color = RoseAccent
-                        )
+                }
+
+                VSpace(12.dp)
+                GlassCard(contentPadding = PaddingValues(14.dp)) {
+                    Text(
+                        text = "Промокод",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = TextPrimary,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = "Введите полученный промокод.",
+                        style = PixelType.caption,
+                        color = TextSecondary
+                    )
+                    VSpace(8.dp)
+                    OutlinedTextField(
+                        value = promoCode,
+                        onValueChange = { promoCode = it.uppercase() },
+                        label = { Text("Код") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    VSpace(8.dp)
+                    GradientButton(
+                        text = "Активировать",
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = promoCode.isNotBlank(),
+                        colors = CG.primaryGradientDeep
+                    ) {
+                        sounds.click()
+                        viewModel.redeemPromo(promoCode)
+                        promoCode = ""
                     }
                 }
 
@@ -337,7 +361,32 @@ private fun ProductCard(
     }
 }
 
-/** Пиксельная иллюстрация товара. */
+/** Небольшой розовый четырёхлистник для карточки Клевер-стиля. */
+@Composable
+private fun CloverShopArt() {
+    Canvas(modifier = Modifier.size(37.dp)) {
+        val radius = size.minDimension * 0.225f
+        val middle = Offset(size.width / 2f, size.height / 2f - radius * 0.10f)
+        val distance = radius * 0.72f
+        val fill = Color(0xFFFFA8D1)
+        val edge = Color(0xFFE754A3)
+        listOf(
+            Offset(0f, -distance), Offset(distance, 0f),
+            Offset(0f, distance), Offset(-distance, 0f)
+        ).forEach { shift ->
+            drawCircle(color = fill, radius = radius, center = middle + shift)
+            drawCircle(color = edge, radius = radius, center = middle + shift, style = androidx.compose.ui.graphics.drawscope.Stroke(1.4f))
+        }
+        drawLine(
+            color = edge,
+            start = middle + Offset(0f, distance * 0.6f),
+            end = Offset(size.width * 0.67f, size.height * 0.94f),
+            strokeWidth = 2.6f
+        )
+    }
+}
+
+/** Небольшая иллюстрация товара на витрине. */
 @Composable
 private fun ProductArt(product: Product) {
     Box(
@@ -348,13 +397,19 @@ private fun ProductArt(product: Product) {
         contentAlignment = Alignment.Center
     ) {
         when (product) {
-            Product.STYLE_CHINA -> PixelSpriteView(sprite = DragonSprite, size = 16.dp)
-            Product.STYLE_ANIME -> Row(verticalAlignment = Alignment.Bottom) {
-                PixelSpriteView(sprite = WaguriSprite, size = 36.dp)
-                Spacer(Modifier.width(2.dp))
-                PixelSpriteView(sprite = SukunaSprite, size = 36.dp)
-            }
-            Product.MASCOT -> PixelSpriteView(sprite = MascotSprite, size = 40.dp)
+            Product.STYLE_CHINA -> Image(
+                painter = painterResource(R.drawable.china_dragon),
+                contentDescription = null,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxSize().padding(3.dp)
+            )
+            Product.STYLE_CLOVER -> CloverShopArt()
+            Product.MASCOT -> Image(
+                painter = painterResource(R.drawable.cloverushka),
+                contentDescription = null,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxSize().padding(3.dp)
+            )
             else -> Text(text = product.emoji, fontSize = 26.sp)
         }
     }

@@ -247,7 +247,7 @@ private fun CardBackFace(kind: CardKind, cellHeight: Float) {
                 )
             }
         }
-        // Пиксельный лепесток в углу — «анимешная» деталь рубашки
+        // Пиксельный лепесток в углу — «сказочная» деталь рубашки
         PixelSpriteFit(
             sprite = PetalSprite,
             width = (cellHeight * 0.3f).coerceIn(14f, 26f).dp,

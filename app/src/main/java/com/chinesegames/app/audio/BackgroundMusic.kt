@@ -38,7 +38,7 @@ class BackgroundMusic(context: Context) {
     private var dayTrack = false
     private var prepared = false
 
-    /** Стилевой набор: у «дракона» и «аниме» свои треки. */
+    /** Стилевой набор: у «дракона» и «розового клевера» свои треки. */
     private var pack: StylePack = StylePack.CLASSIC
 
     /** Своя музыка пользователя (content-URI) — если куплена и выбрана. */
@@ -159,7 +159,7 @@ class BackgroundMusic(context: Context) {
         }
         val res = when (pack) {
             StylePack.CHINA -> R.raw.bgm_china
-            StylePack.ANIME -> R.raw.bgm_anime
+            StylePack.CLOVER -> R.raw.bgm_clover
             StylePack.CLASSIC -> if (dayTrack) R.raw.bgm_day else R.raw.bgm_night
         }
         try {

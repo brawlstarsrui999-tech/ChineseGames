@@ -2,7 +2,7 @@ package com.chinesegames.app.data
 
 /**
  * Всё, что относится к «украшательству» приложения: цветовые стили,
- * стилевые наборы (китайский дракон, аниме) и уголок для талисмана.
+ * стилевые наборы (китайский дракон, розовый клевер) и уголок для талисмана.
  *
  * Обучение полностью бесплатно; эти вещи — единственное, что продаётся
  * в магазине (см. [Product]). Фиолетовый стиль — бесплатный и включён
@@ -56,22 +56,25 @@ enum class StylePack(
         description = "Красное золото, дракон, фонарики и монеты, тихая традиционная музыка",
         defaultColor = ColorStyle.RED
     ),
-    ANIME(
-        title = "Аниме",
-        emoji = "✨",
-        description = "Пиксельные Вагури и Сукуна-в-Мэгуми по краям экрана, блёстки, аниме-звуки и музыка",
+    CLOVER(
+        title = "Розовый клевер",
+        emoji = "☘️",
+        description = "Розовый сад клевера: объёмные листья мягко кружатся и падают на фоне",
         defaultColor = ColorStyle.PINK
     );
 
     val isFree: Boolean get() = this == CLASSIC
 
     companion object {
-        fun fromName(raw: String?): StylePack =
-            entries.firstOrNull { it.name == raw } ?: CLASSIC
+        fun fromName(raw: String?): StylePack = when (raw) {
+            // Мягкая миграция настройки из предыдущей версии приложения.
+            "ANIME" -> CLOVER
+            else -> entries.firstOrNull { it.name == raw } ?: CLASSIC
+        }
     }
 }
 
-/** Угол экрана, в котором живёт чиби-талисман. */
+/** Угол экрана, в котором живёт Кловерушка-талисман. */
 enum class MascotCorner(val title: String) {
     BOTTOM_END("Справа снизу"),
     BOTTOM_START("Слева снизу"),

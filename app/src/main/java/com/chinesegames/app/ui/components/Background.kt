@@ -31,7 +31,7 @@ import kotlin.random.Random
 
 /**
  * Живой фон: градиент + плавающие светящиеся «орбы» + звёздная пыль,
- * а поверх — анимешно-пиксельные декорации (лепестки сакуры и облачка).
+ * а поверх — мягкие декоративные слои (лепестки сакуры, облака и стилевые наборы).
  * Используется на всех экранах, чтобы оформление было единым.
  */
 @Composable
@@ -103,26 +103,23 @@ fun PurpleBackground(
             PixelCloudLayer(modifier = Modifier.fillMaxSize())
         }
 
-        // Украшения стилевого набора: дракон с фонариками или аниме-персонажи.
+        // Украшения стилевого набора: дракон с фонариками или розовый сад клевера.
         when (pack) {
-            StylePack.CHINA -> PixelChinaLayer(modifier = Modifier.fillMaxSize())
-            StylePack.ANIME -> PixelAnimeLayer(modifier = Modifier.fillMaxSize())
+            StylePack.CHINA -> ChinaDragonLayer(modifier = Modifier.fillMaxSize())
+            StylePack.CLOVER -> CloverGardenLayer(modifier = Modifier.fillMaxSize())
             StylePack.CLASSIC -> Unit
         }
 
-        if (petals) {
+        // У Клевер-стиля собственные плавные листья в CloverGardenLayer;
+        // не добавляем туда старые пиксельные сакуры.
+        if (petals && pack != StylePack.CLOVER) {
             PixelPetalLayer(
                 modifier = Modifier.fillMaxSize(),
-                count = when (pack) {
-                    StylePack.CLASSIC -> if (CgPaletteState.night) 12 else 14
-                    else -> 16
-                },
+                count = if (pack == StylePack.CLASSIC) {
+                    if (CgPaletteState.night) 12 else 14
+                } else 16,
                 alpha = if (CgPaletteState.night) 0.85f else 1f,
-                sprites = when (pack) {
-                    StylePack.CHINA -> ChinaFallingSprites
-                    StylePack.ANIME -> AnimeFallingSprites
-                    StylePack.CLASSIC -> DecorSprites
-                }
+                sprites = if (pack == StylePack.CHINA) ChinaFallingSprites else DecorSprites
             )
         }
 

@@ -282,7 +282,7 @@ fun SettingsScreen(
                     StylePack.entries.forEach { pack ->
                         val required = when (pack) {
                             StylePack.CHINA -> Product.STYLE_CHINA
-                            StylePack.ANIME -> Product.STYLE_ANIME
+                            StylePack.CLOVER -> Product.STYLE_CLOVER
                             StylePack.CLASSIC -> null
                         }
                         CosmeticChip(
@@ -305,8 +305,8 @@ fun SettingsScreen(
                         VSpace(10.dp)
                         ToggleRow(
                             icon = Icons.Filled.Person,
-                            title = "Чиби-талисман",
-                            subtitle = "Перетаскивайте девочку в любой угол; коснитесь, чтобы услышать реплику",
+                            title = "Кловерушка — талисман",
+                            subtitle = "Перетаскивайте зверушку в любой угол; коснитесь, чтобы услышать её мурр-трель",
                             checked = settings.mascotEnabled,
                             accent = SkyAccent
                         ) {
@@ -501,9 +501,9 @@ fun SettingsScreen(
                             scope.launch {
                                 accountMessage = when (val result = account.signIn(activity)) {
                                     is SignInResult.Success -> "Вошли как ${result.profile.email ?: result.profile.displayName ?: "пользователь"}; прогресс синхронизируется"
-                                    SignInResult.NotConfigured -> "Firebase ещё не настроен: добавьте google-services.json и CG_WEB_CLIENT_ID"
+                                    SignInResult.NotConfigured -> "Вход через Google сейчас недоступен"
                                     SignInResult.Cancelled -> "Вход отменён"
-                                    is SignInResult.Error -> result.message
+                                    is SignInResult.Error -> "Не удалось войти через Google. Попробуйте ещё раз."
                                 }
                             }
                         }
@@ -513,7 +513,7 @@ fun SettingsScreen(
                             accountMessage = when (val result = account.syncNow()) {
                                 CloudSyncResult.Success -> "Прогресс, настройки и покупки синхронизированы"
                                 CloudSyncResult.NotSignedIn -> "Сначала войдите через Google"
-                                is CloudSyncResult.Error -> "Синхронизация не удалась: ${result.message}"
+                                is CloudSyncResult.Error -> "Синхронизация не удалась. Попробуйте ещё раз позже."
                             }
                         }
                     },
@@ -775,19 +775,17 @@ private fun AccountCard(
                 Text("Проверяем аккаунт…", style = PixelType.caption, color = TextSecondary)
             }
             AccountState.NotConfigured -> {
-                PixelTag(text = "FIREBASE НЕ НАСТРОЕН", color = RoseAccent)
+                PixelTag(text = "СИНХРОНИЗАЦИЯ НЕДОСТУПНА", color = RoseAccent)
                 VSpace(8.dp)
                 Text(
-                    text = "Вход подготовлен, но для релизной сборки нужен google-services.json " +
-                        "из Firebase Console и OAuth web client ID в CG_WEB_CLIENT_ID. " +
-                        "Без них приложение и все бесплатные уроки работают как обычно.",
+                    text = "Можно продолжать учиться локально: все бесплатные уроки, словарь и игры работают как обычно.",
                     style = PixelType.caption,
                     color = TextSecondary
                 )
             }
             AccountState.SignedOut, is AccountState.Error -> {
                 if (state is AccountState.Error) {
-                    Text(text = state.message, style = PixelType.caption, color = RoseAccent)
+                    Text(text = "Не удалось получить данные аккаунта. Попробуйте войти ещё раз.", style = PixelType.caption, color = RoseAccent)
                     VSpace(8.dp)
                 }
                 Text(

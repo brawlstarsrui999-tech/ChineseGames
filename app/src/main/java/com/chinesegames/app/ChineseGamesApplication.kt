@@ -61,8 +61,8 @@ class ChineseGamesApplication : Application() {
     /** Firebase Google Sign-In. При отсутствии google-services.json остаётся «не настроен». */
     val account: AccountManager by lazy { AccountManager(this, cloudSync) }
 
-    /** Голос чиби-талисмана: записанные реплики + запасной русский TTS. */
-    val mascotVoice: MascotVoice by lazy { MascotVoice(this, speaker, music) }
+    /** Звериные мурр-трели Кловерушки-талисмана. */
+    val mascotVoice: MascotVoice by lazy { MascotVoice(this, music) }
 
     /** Область для разовых фоновых задач приложения. */
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -77,7 +77,6 @@ class ChineseGamesApplication : Application() {
             settings.settings.customMusicUri.takeIf { purchases.has(Product.CUSTOM_MUSIC) }
         )
         music.onCustomTrackFailed = { settings.setCustomMusic(null, null) }
-        sounds.animeSet = settings.settings.stylePack == StylePack.ANIME
         Ads.init(this)
 
         // Оформление меняет палитру в UI, музыку и набор коротких звуков сразу.
@@ -85,7 +84,6 @@ class ChineseGamesApplication : Application() {
             settings.state.collect { value ->
                 val customTrack = value.customMusicUri.takeIf { purchases.has(Product.CUSTOM_MUSIC) }
                 music.setSource(value.stylePack, customTrack)
-                sounds.animeSet = value.stylePack == StylePack.ANIME
             }
         }
 

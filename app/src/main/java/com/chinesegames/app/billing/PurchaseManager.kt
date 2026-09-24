@@ -2,6 +2,7 @@ package com.chinesegames.app.billing
 
 import com.chinesegames.app.data.PendingInvoice
 import com.chinesegames.app.data.Product
+import com.chinesegames.app.data.PromoRedemption
 import com.chinesegames.app.data.PurchaseStore
 import kotlinx.coroutines.flow.StateFlow
 
@@ -39,10 +40,11 @@ class PurchaseManager(
 
     fun has(product: Product): Boolean = store.has(product)
 
+    /** Внутренний тестовый/авторский доступ без платежа. */
+    fun redeemPromo(raw: String): PromoRedemption = store.redeemPromo(raw)
+
     /** Настроен ли магазин (без ключей Robokassa кнопки «Купить» неактивны). */
     val isAvailable: Boolean get() = RobokassaConfig.isConfigured
-
-    val isTestMode: Boolean get() = RobokassaConfig.isTest
 
     /** Выставить счёт и получить ссылку на оплату. */
     suspend fun begin(product: Product, email: String? = null): PaymentSession {

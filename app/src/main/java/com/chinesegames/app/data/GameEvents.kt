@@ -13,7 +13,7 @@ data class GameOutcome(
 
 /**
  * Общие события приложения, на которые реагируют «живые» элементы интерфейса
- * (например, чиби-талисман хвалит за хорошую партию).
+ * (например, Кловерушка-талисман хвалит за хорошую партию).
  */
 object GameEvents {
     private val _finished = MutableSharedFlow<GameOutcome>(extraBufferCapacity = 8)

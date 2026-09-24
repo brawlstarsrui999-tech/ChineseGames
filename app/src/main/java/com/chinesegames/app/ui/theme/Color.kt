@@ -10,7 +10,7 @@ import kotlin.math.abs
  *  Палитра ChineseGames.
  *
  *  Все цвета — «двойные»: ночная тема (глубокий фиолетовый неон) и дневная
- *  (светлая аниме-пастель). Какой вариант активен, решает [CgPaletteState],
+ *  (светлая пастель). Какой вариант активен, решает [CgPaletteState],
  *  а весь интерфейс переключается целиком через key(theme, style) в
  *  MainActivity — поэтому цвета можно читать как обычные значения.
  *
@@ -315,32 +315,6 @@ object CG {
     val pixelWhite: Color get() = dual(Color(0xFFF8F5FF), Color(0xFFFFFFFF))
     val pixelBlush: Color get() = dual(Color(0xFFFF9EB5), Color(0xFFFF7A9B))
     val pixelLantern: Color get() = dual(Color(0xFFF87171), Color(0xFFEF4444))
-
-    /* ------------------ Цвета персонажей стилевых наборов ------------------ */
-
-    /** Кожа чиби-персонажей. */
-    val pixelSkin: Color get() = Color(0xFFFFE0C8)
-    val pixelSkinShade: Color get() = Color(0xFFF2B99A)
-
-    /** Волосы талисмана — голубые. */
-    val pixelHairBlue: Color get() = Color(0xFF6ED3F7)
-    val pixelHairBlueDark: Color get() = Color(0xFF3AA7D9)
-
-    /** Вагури: мягкие розово-русые волосы и голубые глаза. */
-    val pixelHairRose: Color get() = Color(0xFFE8B4C8)
-    val pixelHairRoseDark: Color get() = Color(0xFFC98AA6)
-
-    /** Мэгуми/Сукуна: тёмные волосы, красные глаза и метки. */
-    val pixelHairDark: Color get() = Color(0xFF1F2A44)
-    val pixelHairDarkLight: Color get() = Color(0xFF37476B)
-    val pixelCrimson: Color get() = Color(0xFFE11D48)
-    val pixelUniform: Color get() = Color(0xFF111827)
-
-    /** Дракон: изумрудная чешуя и золотые рога. */
-    val pixelJade: Color get() = Color(0xFF2DD4BF)
-    val pixelJadeDark: Color get() = Color(0xFF0F766E)
-    val pixelScarlet: Color get() = Color(0xFFDC2626)
-    val pixelScarletDark: Color get() = Color(0xFF991B1B)
 
     const val LEARNED_THRESHOLD = 0.75f
 }

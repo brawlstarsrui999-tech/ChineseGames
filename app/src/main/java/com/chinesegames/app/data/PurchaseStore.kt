@@ -57,26 +57,26 @@ enum class Product(
             "Красно-золотая палитра в подарок"
         )
     ),
-    STYLE_ANIME(
-        code = "style_anime",
-        title = "Аниме-стиль",
-        emoji = "✨",
+    STYLE_CLOVER(
+        code = "style_clover",
+        title = "Стиль «Розовый клевер»",
+        emoji = "☘️",
         priceRub = 199,
-        description = "Пиксельные Вагури с одной стороны и Сукуна-в-Мэгуми с другой",
+        description = "Нежный розовый сад: объёмные клеверы и листья плавно кружатся на фоне",
         perks = listOf(
-            "Чиби-персонажи по краям экрана, блёстки и звёзды",
-            "Аниме-звуки в играх и энергичная фоновая музыка",
+            "Живой фон с большими четырёхлистниками и падающими листьями клевера",
+            "Воздушная музыка арфы и колокольчиков",
             "Розовая палитра в подарок"
         )
     ),
     MASCOT(
         code = "mascot",
-        title = "Чиби-талисман",
-        emoji = "💙",
+        title = "Кловерушка — талисман",
+        emoji = "🐾",
         priceRub = 499,
-        description = "Милая девочка с голубыми волосами, которая хвалит вас голосом",
+        description = "Добрая ушастая зверушка с клеверным воротничком, которая мурлычет и радуется вашим успехам",
         perks = listOf(
-            "Озвученные фразы: «Отлично!», «Хороший результат, малыш!» и другие",
+            "Милые звериные мурр-трели и чирпы вместо человеческой озвучки",
             "Реагирует на результаты игр и на касание",
             "Перетаскивается в любой угол экрана"
         )
@@ -97,7 +97,11 @@ enum class Product(
     val priceLabel: String get() = "$priceRub ₽"
 
     companion object {
-        fun fromCode(code: String?): Product? = entries.firstOrNull { it.code == code }
+        fun fromCode(code: String?): Product? = when (code) {
+            // Покупка из прежней версии сохраняется как новый Клевер-стиль.
+            "style_anime" -> STYLE_CLOVER
+            else -> entries.firstOrNull { it.code == code }
+        }
     }
 }
 
@@ -129,6 +133,19 @@ class PurchaseStore(context: Context) {
     val pending: StateFlow<List<PendingInvoice>> = _pending.asStateFlow()
 
     fun has(product: Product): Boolean = product in _owned.value
+
+    /**
+     * Применить закрытый промокод для тестеров. Один и тот же код на устройстве
+     * используется один раз; открытый товар синхронизируется как покупка.
+     */
+    fun redeemPromo(raw: String): PromoRedemption {
+        val promo = PromoCode.parse(raw) ?: return PromoRedemption.Invalid
+        val used = prefs.getStringSet(KEY_REDEEMED_PROMOS, emptySet()).orEmpty()
+        if (promo.value in used) return PromoRedemption.AlreadyUsed
+        prefs.edit().putStringSet(KEY_REDEEMED_PROMOS, used + promo.value).apply()
+        grant(promo.product)
+        return PromoRedemption.Granted(promo.product)
+    }
 
     /** Открыть товар (после подтверждённой оплаты или восстановления из облака). */
     fun grant(product: Product) {
@@ -232,5 +249,6 @@ class PurchaseStore(context: Context) {
         private const val KEY_OWNED = "owned"
         private const val KEY_PENDING = "pending"
         private const val KEY_LAST_INVOICE = "last_invoice"
+        private const val KEY_REDEEMED_PROMOS = "redeemed_promos"
     }
 }

@@ -8,19 +8,21 @@ import androidx.annotation.RawRes
 import com.chinesegames.app.R
 import kotlin.random.Random
 
-/** Реплика талисмана: текст (для пузыря и запасной озвучки) и записанный голос. */
+/**
+ * Состояние Кловерушки: рядом выводится дружелюбный текст, а звучит не
+ * человеческая фраза, а её собственная звериная мурр-трель/чирп.
+ */
 enum class MascotLine(val text: String, @RawRes val res: Int) {
-    GREAT("Отлично!", R.raw.mascot_great),
-    GOOD("Хороший результат, малыш!", R.raw.mascot_good),
-    KEEP_UP("Ты молодец, так держать!", R.raw.mascot_keepup),
-    PROUD("Я тобой горжусь!", R.raw.mascot_proud),
-    RECORD("Ух ты, новый рекорд!", R.raw.mascot_record),
-    DONT_GIVE_UP("Не сдавайся, у тебя всё получится!", R.raw.mascot_dontgiveup),
-    TRY_AGAIN("Ничего страшного, попробуй ещё раз.", R.raw.mascot_again),
-    HELLO("Привет! Давай поучим китайский?", R.raw.mascot_hello);
+    GREAT("Кловерушка радуется: «Отлично!»", R.raw.cloverushka_happy),
+    GOOD("Кловерушка мурлычет: «Хороший результат!»", R.raw.cloverushka_proud),
+    KEEP_UP("Кловерушка машет лапкой: «Так держать!»", R.raw.cloverushka_happy),
+    PROUD("Кловерушка довольно мурлычет.", R.raw.cloverushka_proud),
+    RECORD("Кловерушка прыгает от радости: новый рекорд!", R.raw.cloverushka_record),
+    DONT_GIVE_UP("Кловерушка подбадривает тебя.", R.raw.cloverushka_comfort),
+    TRY_AGAIN("Кловерушка нежно мурлычет: попробуем ещё раз.", R.raw.cloverushka_comfort),
+    HELLO("Кловерушка приветствует тебя!", R.raw.cloverushka_hello);
 
     companion object {
-        /** Что сказать по итогам партии. */
         fun forAccuracy(accuracy: Float, stars: Int, rnd: Random = Random.Default): MascotLine = when {
             stars >= 3 && accuracy >= 0.97f -> if (rnd.nextBoolean()) GREAT else RECORD
             accuracy >= 0.9f -> if (rnd.nextBoolean()) GREAT else PROUD
@@ -29,26 +31,24 @@ enum class MascotLine(val text: String, @RawRes val res: Int) {
             else -> if (rnd.nextBoolean()) DONT_GIVE_UP else TRY_AGAIN
         }
 
-        /** Реплика на касание. */
         fun greeting(rnd: Random = Random.Default): MascotLine =
             listOf(HELLO, KEEP_UP, PROUD, GOOD, GREAT).random(rnd)
     }
 }
 
 /**
- * Голос чиби-талисмана: записанные фразы из res/raw (сгенерированы нейросетевым
- * голосом, см. README), с запасным вариантом — русский системный TTS.
- * Пока талисман говорит, музыка приглушается, как и при озвучке иероглифов.
+ * Голос Кловерушки — короткие синтезированные звериные звуки: мурр-трели,
+ * радостные чирпы и мягкие переливы. Это намеренно не TTS: талисман остаётся
+ * милой зверушкой, а текст реплики показывается в пузыре рядом с ней.
  */
 class MascotVoice(
     context: Context,
-    private val speaker: ChineseSpeaker,
     private val music: BackgroundMusic
 ) {
     private val appContext = context.applicationContext
     private var player: MediaPlayer? = null
 
-    /** Слушатель начала/окончания реплики — для анимации талисмана. */
+    /** Слушатель начала/окончания звука — для анимации Кловерушки. */
     var onSpeakingChange: ((Boolean) -> Unit)? = null
 
     val isSpeaking: Boolean get() = player?.isPlaying == true
@@ -57,34 +57,27 @@ class MascotVoice(
         stop()
         val media = try {
             MediaPlayer().apply {
-                // Атрибуты нужно задать ДО prepare(), поэтому не используем
-                // MediaPlayer.create() (она возвращает уже подготовленный объект).
                 setAudioAttributes(
                     AudioAttributes.Builder()
                         .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                         .build()
                 )
                 val descriptor = appContext.resources.openRawResourceFd(line.res)
-                    ?: error("ресурс реплики недоступен")
+                    ?: error("ресурс звука Кловерушки недоступен")
                 descriptor.use { setDataSource(it.fileDescriptor, it.startOffset, it.length) }
                 prepare()
-                setVolume(1f, 1f)
+                setVolume(0.82f, 0.82f)
             }
         } catch (t: Throwable) {
-            Log.w(TAG, "Голос талисмана недоступен", t)
+            Log.w(TAG, "Звук Кловерушки недоступен", t)
             null
         }
-        if (media == null) {
-            // Запасной вариант: системный русский голос.
-            speaker.speakRussian(line.text)
-            return
-        }
-        media.setOnCompletionListener {
-            finish(it)
-        }
-        media.setOnErrorListener { mp, _, _ ->
-            finish(mp)
+        if (media == null) return
+
+        media.setOnCompletionListener(::finish)
+        media.setOnErrorListener { failed, _, _ ->
+            finish(failed)
             true
         }
         player = media
@@ -92,7 +85,7 @@ class MascotVoice(
         onSpeakingChange?.invoke(true)
         try {
             media.start()
-        } catch (t: Throwable) {
+        } catch (_: Throwable) {
             finish(media)
         }
     }
@@ -118,6 +111,6 @@ class MascotVoice(
     }
 
     private companion object {
-        const val TAG = "MascotVoice"
+        const val TAG = "CloverushkaVoice"
     }
 }

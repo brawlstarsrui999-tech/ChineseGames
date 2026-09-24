@@ -9,6 +9,7 @@ import com.chinesegames.app.billing.PaymentSession
 import com.chinesegames.app.billing.PurchaseManager
 import com.chinesegames.app.data.PendingInvoice
 import com.chinesegames.app.data.Product
+import com.chinesegames.app.data.PromoRedemption
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,8 +25,7 @@ data class ShopUiState(
     val restoring: Boolean = false,
     /** Сообщение-тост внизу экрана. */
     val message: String? = null,
-    val available: Boolean = false,
-    val testMode: Boolean = false
+    val available: Boolean = false
 )
 
 /** Магазин украшений: покупка, подтверждение и восстановление. */
@@ -37,8 +37,7 @@ class ShopViewModel(app: Application) : AndroidViewModel(app) {
         ShopUiState(
             owned = manager.owned.value,
             pending = manager.pending.value,
-            available = manager.isAvailable,
-            testMode = manager.isTestMode
+            available = manager.isAvailable
         )
     )
     val state: StateFlow<ShopUiState> = _state.asStateFlow()
@@ -60,7 +59,7 @@ class ShopViewModel(app: Application) : AndroidViewModel(app) {
             return
         }
         if (!manager.isAvailable) {
-            _state.update { it.copy(message = "Магазин ещё не подключён: не заданы ключи Robokassa") }
+            _state.update { it.copy(message = "Оплата сейчас недоступна. Попробуйте позже.") }
             return
         }
         _state.update { it.copy(busyProduct = product, message = null) }
@@ -69,9 +68,9 @@ class ShopViewModel(app: Application) : AndroidViewModel(app) {
                 val session = manager.begin(product)
                 _state.update { it.copy(busyProduct = null) }
                 onSession(session)
-            } catch (t: Throwable) {
+            } catch (_: Throwable) {
                 _state.update {
-                    it.copy(busyProduct = null, message = "Не удалось выставить счёт: ${t.message ?: "нет связи"}")
+                    it.copy(busyProduct = null, message = "Не удалось выставить счёт. Проверьте подключение и попробуйте ещё раз.")
                 }
             }
         }
@@ -112,6 +111,17 @@ class ShopViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** Промокод — отдельный от Robokassa тестовый путь, без выставления счёта. */
+    fun redeemPromo(raw: String) {
+        when (val result = manager.redeemPromo(raw)) {
+            is PromoRedemption.Granted -> _state.update {
+                it.copy(message = "Промокод принят: «${result.product.title}» открыто")
+            }
+            PromoRedemption.AlreadyUsed -> _state.update { it.copy(message = "Этот промокод уже был использован") }
+            PromoRedemption.Invalid -> _state.update { it.copy(message = "Промокод не найден") }
+        }
+    }
+
     fun clearMessage() = _state.update { it.copy(message = null) }
 
     private fun messageFor(result: ConfirmResult): String = when (result) {
@@ -119,6 +129,6 @@ class ShopViewModel(app: Application) : AndroidViewModel(app) {
         is ConfirmResult.Pending -> "Оплата «${result.product.title}» ещё не подтверждена" +
             (result.state?.let { " (${it.title.lowercase()})" } ?: "") + ". Проверим позже."
         is ConfirmResult.Failed -> "Платёж за «${result.product.title}» не прошёл: ${result.state.title.lowercase()}"
-        is ConfirmResult.Error -> "Не удалось проверить оплату: ${result.message}"
+        is ConfirmResult.Error -> "Не удалось проверить оплату. Повторите чуть позже."
     }
 }

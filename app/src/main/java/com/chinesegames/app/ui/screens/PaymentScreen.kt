@@ -178,7 +178,7 @@ fun PaymentScreen(
                                     text = when (outcome) {
                                         is ConfirmResult.Pending -> "Оплата пока не подтверждена — попробуйте проверить через минуту."
                                         is ConfirmResult.Failed -> "Платёж не прошёл: ${outcome.state.title.lowercase()}."
-                                        is ConfirmResult.Error -> "Не удалось проверить: ${outcome.message}."
+                                        is ConfirmResult.Error -> "Не удалось проверить оплату. Попробуйте ещё раз чуть позже."
                                         else -> ""
                                     },
                                     style = PixelType.caption,

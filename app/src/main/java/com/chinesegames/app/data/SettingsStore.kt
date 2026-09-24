@@ -63,13 +63,13 @@ data class AppSettings(
     val speakWords: Boolean = true,
     /** Цветовой стиль (фиолетовый бесплатный, остальные — покупка «Цветные стили»). */
     val colorStyle: ColorStyle = ColorStyle.PURPLE,
-    /** Стилевой набор: классика, китайский дракон или аниме. */
+    /** Стилевой набор: классика, китайский дракон или розовый клевер. */
     val stylePack: StylePack = StylePack.CLASSIC,
     /** Своя фоновая музыка: content-URI выбранного файла (покупка «Своя музыка»). */
     val customMusicUri: String? = null,
     /** Название выбранного пользователем трека — только для показа в настройках. */
     val customMusicTitle: String? = null,
-    /** Чиби-талисман показывается на экране (после покупки). */
+    /** Кловерушка-талисман показывается на экране (после покупки). */
     val mascotEnabled: Boolean = true,
     /** Угол, в котором сидит талисман. */
     val mascotCorner: MascotCorner = MascotCorner.BOTTOM_END
@@ -162,7 +162,7 @@ class SettingsStore(context: Context) {
 
     /**
      * Выбор стилевого набора. Вместе с набором включается его «родной» цвет
-     * (дракон — красный, аниме — розовый); классика возвращает фиолетовый.
+     * (дракон — красный, клевер — розовый); классика возвращает фиолетовый.
      */
     fun setStylePack(pack: StylePack) {
         prefs.edit()
