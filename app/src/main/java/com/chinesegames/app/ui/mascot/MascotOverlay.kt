@@ -27,7 +27,6 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.matchParentSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -222,7 +221,7 @@ fun MascotOverlay(
 private fun CloverushkaArt(speaking: Boolean, idle: Float, modifier: Modifier = Modifier) {
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         if (speaking) {
-            Canvas(Modifier.matchParentSize()) {
+            Canvas(Modifier.fillMaxSize()) {
                 val pulse = 0.55f + idle * 0.45f
                 repeat(4) { index ->
                     val angle = index * 1.5708f + idle * 0.65f
