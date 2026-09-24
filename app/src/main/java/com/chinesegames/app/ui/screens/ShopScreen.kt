@@ -6,6 +6,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,11 +15,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -26,6 +29,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.ShoppingBag
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -49,11 +53,14 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.chinesegames.app.R
 import com.chinesegames.app.billing.PaymentSession
 import com.chinesegames.app.billing.PurchaseManager
 import com.chinesegames.app.data.Product
+import com.chinesegames.app.data.PublicOffer
 import com.chinesegames.app.ui.components.CgTopBar
 import com.chinesegames.app.ui.components.GhostButton
 import com.chinesegames.app.ui.components.GlassCard
@@ -100,6 +107,7 @@ fun ShopScreen(
     val sounds = LocalSounds.current
     val state by viewModel.state.collectAsState()
     var promoCode by remember { mutableStateOf("") }
+    var productForOffer by remember { mutableStateOf<Product?>(null) }
 
     LaunchedEffect(state.message) {
         if (state.message != null) {
@@ -196,7 +204,7 @@ fun ShopScreen(
                         enabled = state.available && state.busyProduct == null,
                         onBuy = {
                             sounds.click()
-                            viewModel.buy(product) { session -> onPay(session) }
+                            productForOffer = product
                         },
                         onCheckPending = {
                             sounds.click()
@@ -252,6 +260,128 @@ fun ShopScreen(
                     text = state.message.orEmpty(),
                     style = PixelType.caption,
                     color = TextPrimary
+                )
+            }
+        }
+
+        productForOffer?.let { product ->
+            PublicOfferDialog(
+                product = product,
+                onDismiss = { productForOffer = null },
+                onAccept = {
+                    productForOffer = null
+                    sounds.click()
+                    viewModel.buy(product) { session -> onPay(session) }
+                }
+            )
+        }
+    }
+}
+
+/** Согласие с публичной офертой обязательно до перехода к оплате. */
+@Composable
+private fun PublicOfferDialog(
+    product: Product,
+    onDismiss: () -> Unit,
+    onAccept: () -> Unit
+) {
+    var accepted by remember(product) { mutableStateOf(false) }
+    val offerScroll = rememberScrollState()
+    val shape = RoundedCornerShape(26.dp)
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            dismissOnBackPress = true,
+            dismissOnClickOutside = false,
+            usePlatformDefaultWidth = false
+        )
+    ) {
+        Box(
+            modifier = Modifier
+                .padding(18.dp)
+                .widthIn(max = 520.dp)
+                .clip(shape)
+                .background(Brush.verticalGradient(CG.cardGradient))
+                .border(1.dp, GoldAccent.copy(alpha = 0.52f), shape)
+                .padding(horizontal = 18.dp, vertical = 18.dp)
+        ) {
+            Column {
+                Text(
+                    text = "Публичная оферта",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = TextPrimary,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "Покупка: «${product.title}» · ${product.priceLabel}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = GoldAccent
+                )
+                VSpace(4.dp)
+                Text(
+                    text = "Редакция от ${PublicOffer.VERSION_DATE}",
+                    style = PixelType.caption,
+                    color = TextMuted
+                )
+                VSpace(10.dp)
+                PixelDivider()
+                VSpace(8.dp)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 330.dp)
+                        .verticalScroll(offerScroll)
+                ) {
+                    PublicOffer.sections(product).forEach { section ->
+                        Text(
+                            text = section.title,
+                            style = MaterialTheme.typography.titleSmall,
+                            color = TextPrimary,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        VSpace(3.dp)
+                        Text(
+                            text = section.text,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TextSecondary
+                        )
+                        VSpace(12.dp)
+                    }
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .clickable { accepted = !accepted }
+                        .padding(vertical = 5.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Checkbox(
+                        checked = accepted,
+                        onCheckedChange = { accepted = it }
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        text = "Я прочитал(а) и принимаю условия публичной оферты",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextPrimary,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                VSpace(8.dp)
+                GradientButton(
+                    text = "Согласиться и перейти к оплате",
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = accepted,
+                    colors = CG.goldGradient,
+                    onClick = onAccept
+                )
+                VSpace(8.dp)
+                GhostButton(
+                    text = "Отмена",
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = onDismiss
                 )
             }
         }

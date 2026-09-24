@@ -1,5 +1,7 @@
 package com.chinesegames.app.ui.screens
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -24,6 +26,7 @@ import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.MusicOff
 import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material.icons.filled.SportsEsports
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
@@ -40,6 +43,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -47,6 +51,7 @@ import androidx.compose.ui.unit.sp
 import com.chinesegames.app.ads.AdBanner
 import com.chinesegames.app.ui.components.BreathingIcon
 import com.chinesegames.app.ui.components.CircleIconButton
+import com.chinesegames.app.ui.components.GhostButton
 import com.chinesegames.app.ui.components.PulsingGlow
 import com.chinesegames.app.ui.components.PurpleBackground
 import com.chinesegames.app.ui.components.StatPill
@@ -61,6 +66,8 @@ import com.chinesegames.app.ui.theme.SkyAccent
 import com.chinesegames.app.ui.theme.TextMuted
 import com.chinesegames.app.ui.theme.TextSecondary
 import com.chinesegames.app.ui.theme.VividPurple
+
+private const val TELEGRAM_URL = "https://t.me/cloverteamapps"
 
 /**
  * Главный экран: логотип, статистика и переключатели звука.
@@ -79,6 +86,7 @@ fun MainMenuScreen(
     val sounds = LocalSounds.current
     val music = LocalMusic.current
     val settings = LocalSettings.current
+    val context = LocalContext.current
     var muted by remember { mutableStateOf(sounds.muted) }
     var musicOn by remember { mutableStateOf(settings.settings.musicEnabled) }
 
@@ -230,7 +238,19 @@ fun MainMenuScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Spacer(Modifier.height(22.dp))
+            Spacer(Modifier.height(16.dp))
+            GhostButton(
+                text = "Мы в Telegram",
+                icon = Icons.Filled.Send,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                // Открываем ссылку через систему: приложение Telegram подхватит её,
+                // а при его отсутствии откроется обычный браузер.
+                runCatching {
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(TELEGRAM_URL)))
+                }
+            }
+            Spacer(Modifier.height(16.dp))
             Text(
                 text = "by CloverTeam",
                 style = MaterialTheme.typography.labelSmall,
