@@ -14,6 +14,18 @@ enum class ThemeMode(val title: String, val emoji: String) {
     val isNight: Boolean get() = this == NIGHT
 }
 
+/** Размер интерфейсного текста. Системный масштаб Android применяется дополнительно. */
+enum class AppFontSize(val title: String, val scale: Float) {
+    SMALL("Мелкий", 0.88f),
+    MEDIUM("Средний", 1.00f),
+    LARGE("Крупный", 1.18f);
+
+    companion object {
+        fun fromName(raw: String?): AppFontSize =
+            entries.firstOrNull { it.name == raw } ?: MEDIUM
+    }
+}
+
 /**
  * Что показывать в играх: иероглиф и пиньинь, только иероглифы или только пиньинь.
  * Так можно учить китайский «без костылей»: кто-то запоминает сами 汉字,
@@ -49,6 +61,10 @@ enum class DisplayMode(
 /** Все настройки приложения, которые пользователь может менять. */
 data class AppSettings(
     val theme: ThemeMode = ThemeMode.NIGHT,
+    /** Три удобных размера для всего текста интерфейса. */
+    val fontSize: AppFontSize = AppFontSize.MEDIUM,
+    /** Показан ли стартовый гид на этом устройстве. */
+    val onboardingCompleted: Boolean = false,
     /** Тихая фоновая музыка. */
     val musicEnabled: Boolean = true,
     /** Громкость музыки 0..1 (по умолчанию заметно тише озвучки). */
@@ -92,6 +108,8 @@ class SettingsStore(context: Context) {
 
     private fun read() = AppSettings(
         theme = if (prefs.getBoolean(KEY_DAY_THEME, false)) ThemeMode.DAY else ThemeMode.NIGHT,
+        fontSize = AppFontSize.fromName(prefs.getString(KEY_FONT_SIZE, null)),
+        onboardingCompleted = prefs.getBoolean(KEY_ONBOARDING_COMPLETED, false),
         musicEnabled = prefs.getBoolean(KEY_MUSIC_ON, true),
         musicVolume = prefs.getFloat(KEY_MUSIC_VOLUME, 0.45f).coerceIn(0f, 1f),
         soundEnabled = !prefs.getBoolean(KEY_SOUND_MUTED, false),
@@ -113,6 +131,17 @@ class SettingsStore(context: Context) {
     fun setTheme(mode: ThemeMode) {
         prefs.edit().putBoolean(KEY_DAY_THEME, mode == ThemeMode.DAY).apply()
         update { it.copy(theme = mode) }
+    }
+
+    fun setFontSize(size: AppFontSize) {
+        prefs.edit().putString(KEY_FONT_SIZE, size.name).apply()
+        update { it.copy(fontSize = size) }
+    }
+
+    /** Завершить стартовое знакомство или показать его повторно из настроек. */
+    fun setOnboardingCompleted(completed: Boolean) {
+        prefs.edit().putBoolean(KEY_ONBOARDING_COMPLETED, completed).apply()
+        update { it.copy(onboardingCompleted = completed) }
     }
 
     fun toggleTheme(): ThemeMode {
@@ -197,6 +226,7 @@ class SettingsStore(context: Context) {
     fun exportForSync(): Map<String, Any?> = with(settings) {
         mapOf(
             "theme" to theme.name,
+            "fontSize" to fontSize.name,
             "musicEnabled" to musicEnabled,
             "musicVolume" to musicVolume,
             "soundEnabled" to soundEnabled,
@@ -215,6 +245,7 @@ class SettingsStore(context: Context) {
         (values["theme"] as? String)?.let { name ->
             ThemeMode.entries.firstOrNull { it.name == name }?.let(::setTheme)
         }
+        (values["fontSize"] as? String)?.let { setFontSize(AppFontSize.fromName(it)) }
         (values["musicEnabled"] as? Boolean)?.let(::setMusicEnabled)
         (values["musicVolume"] as? Number)?.let { setMusicVolume(it.toFloat()) }
         (values["soundEnabled"] as? Boolean)?.let(::setSoundEnabled)
@@ -231,6 +262,8 @@ class SettingsStore(context: Context) {
         const val PREFS = "chinese_games_prefs"
         const val KEY_SOUND_MUTED = "sound_muted"
         private const val KEY_DAY_THEME = "day_theme"
+        private const val KEY_FONT_SIZE = "font_size"
+        private const val KEY_ONBOARDING_COMPLETED = "onboarding_completed"
         private const val KEY_MUSIC_ON = "music_enabled"
         private const val KEY_MUSIC_VOLUME = "music_volume"
         private const val KEY_SRS_FIRST = "srs_first"

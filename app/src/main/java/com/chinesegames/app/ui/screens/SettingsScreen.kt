@@ -99,6 +99,7 @@ import com.chinesegames.app.ui.wordsLabel
 import com.chinesegames.app.auth.AccountState
 import com.chinesegames.app.auth.CloudSyncResult
 import com.chinesegames.app.auth.SignInResult
+import com.chinesegames.app.data.AppFontSize
 import com.chinesegames.app.data.ColorStyle
 import com.chinesegames.app.data.CsvImportSummary
 import com.chinesegames.app.data.DisplayMode
@@ -223,6 +224,46 @@ fun SettingsScreen(
                             music.setDayTrack(mode == ThemeMode.DAY)
                         }
                     }
+                }
+
+                VSpace(24.dp)
+                SectionTitle("Размер текста")
+                VSpace(10.dp)
+                GlassCard(contentPadding = PaddingValues(16.dp)) {
+                    Text(
+                        text = "Выберите удобный размер — он применяется ко всему интерфейсу, включая игровые подсказки.",
+                        style = PixelType.caption,
+                        color = TextSecondary
+                    )
+                    VSpace(12.dp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        AppFontSize.entries.forEach { size ->
+                            SelectChip(
+                                text = size.title,
+                                selected = settings.fontSize == size
+                            ) {
+                                settingsStore.setFontSize(size)
+                                sounds.click()
+                            }
+                        }
+                    }
+                    VSpace(12.dp)
+                    Text(
+                        text = "汉字 · Удобный размер текста",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = TextPrimary
+                    )
+                }
+                VSpace(10.dp)
+                GhostButton(
+                    text = "Посмотреть начальное обучение",
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    settingsStore.setOnboardingCompleted(false)
+                    sounds.click()
                 }
 
                 VSpace(24.dp)

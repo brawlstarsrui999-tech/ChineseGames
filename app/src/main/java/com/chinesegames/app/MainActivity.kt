@@ -12,11 +12,14 @@ import androidx.compose.runtime.key
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.compose.rememberNavController
 import com.chinesegames.app.ui.mascot.MascotOverlay
+import com.chinesegames.app.ui.onboarding.FirstLaunchGuide
 import com.chinesegames.app.ui.navigation.ChineseGamesRoot
 import com.chinesegames.app.ui.theme.ChineseGamesTheme
 import com.chinesegames.app.ui.theme.CgPaletteState
@@ -39,6 +42,13 @@ class MainActivity : ComponentActivity() {
         setContent {
             val settings by app.settings.state.collectAsState()
             val navController = rememberNavController()
+            val systemDensity = LocalDensity.current
+            // Значения sp во всём приложении масштабируются вместе с системным
+            // размером текста и выбранной пользователем настройкой.
+            val textDensity = Density(
+                density = systemDensity.density,
+                fontScale = systemDensity.fontScale * settings.fontSize.scale
+            )
 
             // Тема применяется целиком: key() пересобирает интерфейс,
             // поэтому цвета читаются как обычные значения (см. Color.kt).
@@ -47,23 +57,29 @@ class MainActivity : ComponentActivity() {
             CgPaletteState.pack = settings.stylePack
 
             key(settings.theme, CgPaletteState.key) {
-                ChineseGamesTheme {
-                    CompositionLocalProvider(
-                        LocalSounds provides app.sounds,
-                        LocalSpeaker provides app.speaker,
-                        LocalMusic provides app.music,
-                        LocalSettings provides app.settings,
-                        LocalThemeMode provides settings.theme,
-                        LocalPurchases provides app.purchases,
-                        LocalAccount provides app.account
-                    ) {
-                        Box(Modifier.fillMaxSize()) {
-                            ChineseGamesRoot(navController = navController)
-                            MascotOverlay(
-                                settings = app.settings,
-                                purchases = app.purchases,
-                                voice = app.mascotVoice
-                            )
+                CompositionLocalProvider(LocalDensity provides textDensity) {
+                    ChineseGamesTheme {
+                        CompositionLocalProvider(
+                            LocalSounds provides app.sounds,
+                            LocalSpeaker provides app.speaker,
+                            LocalMusic provides app.music,
+                            LocalSettings provides app.settings,
+                            LocalThemeMode provides settings.theme,
+                            LocalPurchases provides app.purchases,
+                            LocalAccount provides app.account
+                        ) {
+                            Box(Modifier.fillMaxSize()) {
+                                ChineseGamesRoot(navController = navController)
+                                MascotOverlay(
+                                    settings = app.settings,
+                                    purchases = app.purchases,
+                                    voice = app.mascotVoice
+                                )
+                                FirstLaunchGuide(
+                                    visible = !settings.onboardingCompleted,
+                                    onFinish = { app.settings.setOnboardingCompleted(true) }
+                                )
+                            }
                         }
                     }
                 }

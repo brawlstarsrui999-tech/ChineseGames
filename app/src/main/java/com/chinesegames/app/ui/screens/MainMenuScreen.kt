@@ -230,7 +230,15 @@ fun MainMenuScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Spacer(Modifier.height(28.dp))
+            Spacer(Modifier.height(22.dp))
+            Text(
+                text = "by CloverTeam",
+                style = MaterialTheme.typography.labelSmall,
+                color = TextMuted.copy(alpha = 0.78f),
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(Modifier.height(12.dp))
         }
     }
 }
